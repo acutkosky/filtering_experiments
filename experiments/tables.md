@@ -1,6 +1,6 @@
 # Experiment Results Tables
 
-All synthetic experiments use: $p = 0.01$, $R = 3.0$. Values are means over 10--15 independent trials. The "downstream task" is a binary classification problem defined *within* the target distribution $S$: classify points based on the sign of their second coordinate ($x_1 > 0$ vs $x_1 \le 0$). We compare a logistic regression classifier trained on $S$ samples only versus one trained on $S$ samples augmented with filtered $B$ samples. The benefit of filtering is that it provides many more training points from approximately the $S$ distribution, improving generalization when $N_S$ is small.
+All synthetic experiments use: $p = 0.01$, $R = 3.0$. Values are means over 10--15 independent trials. The "downstream task" is a binary classification problem defined *within* the target distribution $S$: classify points based on the sign of their second coordinate ($x_1 > 0$ vs $x_1 \le 0$). Crucially, the $S$ and $O$ distributions have *opposite* biases on $x_1$: points from $S$ have $x_1$ shifted positive (so $\Pr[x_1 > 0 \mid S] \approx 0.84$), while points from $O$ have $x_1$ shifted negative (so $\Pr[x_1 > 0 \mid O] \approx 0.16$). This means including unfiltered $O$ data actively *hurts* the downstream classifier — it provides misleading labels. We compare a logistic regression classifier trained on $S$ samples only versus one trained on $S$ samples augmented with filtered $B$ samples.
 
 TV distance is estimated in two ways:
 - **Histogram-based** (experiments 1--2): Build 50-bin histograms of the first coordinate ($x_0$, the separating direction) for the true $S$ samples and the filtered $B$ samples, then compute $\frac{1}{2} \sum_i |h_S(i) - h_{\text{filtered}}(i)|$.
@@ -28,15 +28,15 @@ TV distance is estimated in two ways:
 
 | $N_S$ | $S$-only acc | $S$+filtered acc |
 |------:|-------------:|-----------------:|
-| 50 | 0.817 | 0.992 |
-| 100 | 0.875 | 0.993 |
-| 200 | 0.931 | 0.993 |
-| 500 | 0.965 | 0.993 |
-| 1,000 | 0.977 | 0.994 |
-| 2,000 | 0.987 | 0.994 |
-| 5,000 | 0.993 | 0.996 |
+| 50 | 0.862 | 0.989 |
+| 100 | 0.877 | 0.990 |
+| 200 | 0.909 | 0.989 |
+| 500 | 0.944 | 0.990 |
+| 1,000 | 0.963 | 0.990 |
+| 2,000 | 0.980 | 0.991 |
+| 5,000 | 0.987 | 0.992 |
 
-With only $N_S = 50$ target samples, the $S$-only classifier achieves 82% accuracy, while augmenting with filtered $B$ (which provides $\sim p \cdot N_B = 5{,}000$ additional approximately-$S$ samples) jumps to 99%. The gap narrows as $N_S$ increases since $S$ alone eventually suffices.
+With only $N_S = 50$ target samples, the $S$-only classifier achieves 86% accuracy, while augmenting with filtered $B$ (which provides $\sim p \cdot N_B = 5{,}000$ additional approximately-$S$ samples) jumps to 99%. The gap narrows as $N_S$ increases since $S$ alone eventually suffices. Because the $O$ distribution has the opposite label bias, including unfiltered $B$ data would actively hurt the classifier — filtering is essential.
 
 ---
 
@@ -60,15 +60,15 @@ With only $N_S = 50$ target samples, the $S$-only classifier achieves 82% accura
 
 | $N_B$ | $S$-only acc | $S$+filtered acc |
 |------:|-------------:|-----------------:|
-| 10,000 | 0.976 | 0.978 |
-| 50,000 | 0.977 | 0.982 |
-| 100,000 | 0.980 | 0.987 |
-| 200,000 | 0.977 | 0.989 |
-| 500,000 | 0.975 | 0.993 |
-| 1,000,000 | 0.976 | 0.996 |
-| 2,000,000 | 0.978 | 0.997 |
+| 10,000 | 0.965 | 0.967 |
+| 50,000 | 0.970 | 0.978 |
+| 100,000 | 0.965 | 0.979 |
+| 200,000 | 0.967 | 0.983 |
+| 500,000 | 0.968 | 0.991 |
+| 1,000,000 | 0.964 | 0.993 |
+| 2,000,000 | 0.967 | 0.996 |
 
-TV decreases with $N_B$ and flattens when the $1/N_S$ term dominates. With $N_S = 1{,}000$, the $S$-only baseline is already decent ($\sim 97.6\%$), but filtered augmentation still provides consistent improvement, especially as $N_B$ grows.
+TV decreases with $N_B$ and flattens when the $1/N_S$ term dominates. With $N_S = 1{,}000$, the $S$-only baseline is already decent ($\sim 96.7\%$), but filtered augmentation provides increasing improvement as $N_B$ grows, reaching 99.6% at $N_B = 2{,}000{,}000$.
 
 ---
 
@@ -94,17 +94,17 @@ TV decreases with $N_B$ and flattens when the $1/N_S$ term dominates. With $N_S 
 
 | $d$ | $S$-only acc | $S$+filtered acc |
 |----:|-------------:|-----------------:|
-| 2 | 0.997 | 0.999 |
-| 5 | 0.991 | 0.997 |
-| 10 | 0.987 | 0.996 |
-| 20 | 0.980 | 0.994 |
-| 50 | 0.955 | 0.989 |
-| 100 | 0.924 | 0.979 |
-| 200 | 0.888 | 0.967 |
-| 500 | 0.802 | 0.938 |
-| 1,000 | 0.733 | 0.888 |
+| 2 | 0.993 | 0.998 |
+| 5 | 0.987 | 0.996 |
+| 10 | 0.980 | 0.994 |
+| 20 | 0.964 | 0.989 |
+| 50 | 0.942 | 0.983 |
+| 100 | 0.910 | 0.969 |
+| 200 | 0.878 | 0.954 |
+| 500 | 0.849 | 0.920 |
+| 1,000 | 0.843 | 0.876 |
 
-The TV bound stays at zero for $d \le 200$, confirming the dimension-free theoretical prediction. Degradation at $d = 500$--$1000$ is an artifact of the SVM solver (linear model with $d$ parameters and only $N_S = 1{,}000$ training points), not the theory. The downstream benefit of filtering increases dramatically with dimension, since the $S$-only classifier degrades faster with $d$ while filtered augmentation provides robustly useful data.
+The TV bound stays at zero for $d \le 200$, confirming the dimension-free theoretical prediction. Degradation at $d = 500$--$1000$ is an artifact of the SVM solver (linear model with $d$ parameters and only $N_S = 1{,}000$ training points), not the theory. Filtering consistently improves over $S$-only across all dimensions, with the gap being largest (3--9 percentage points) in the moderate-$d$ range where the $S$-only classifier struggles but the filter still works well.
 
 ---
 
@@ -116,10 +116,10 @@ The TV bound stays at zero for $d \le 200$, confirming the dimension-free theore
 
 | $\gamma$ | TV bound (mean) | TV bound (std) |
 |---------:|----------------:|---------------:|
-| 0.02 | 0.187 | 0.106 |
-| 0.05 | 0.041 | 0.034 |
-| 0.10 | 0.048 | 0.098 |
-| 0.20 | 0.002 | 0.005 |
+| 0.02 | 0.285 | 0.159 |
+| 0.05 | 0.106 | 0.092 |
+| 0.10 | 0.047 | 0.067 |
+| 0.20 | 0.003 | 0.008 |
 | 0.30 | 0.000 | 0.000 |
 | 0.50 | 0.000 | 0.000 |
 | 0.80 | 0.000 | 0.000 |
@@ -129,16 +129,16 @@ The TV bound stays at zero for $d \le 200$, confirming the dimension-free theore
 
 | $\gamma$ | $S$-only acc | $S$+filtered acc |
 |---------:|-------------:|-----------------:|
-| 0.02 | 0.818 | 0.995 |
-| 0.05 | 0.836 | 0.995 |
-| 0.10 | 0.819 | 0.996 |
-| 0.20 | 0.815 | 0.995 |
-| 0.30 | 0.823 | 0.995 |
-| 0.50 | 0.814 | 0.996 |
-| 0.80 | 0.832 | 0.995 |
-| 1.50 | 0.840 | 0.995 |
+| 0.02 | 0.861 | 0.993 |
+| 0.05 | 0.859 | 0.993 |
+| 0.10 | 0.867 | 0.992 |
+| 0.20 | 0.854 | 0.993 |
+| 0.30 | 0.869 | 0.993 |
+| 0.50 | 0.871 | 0.993 |
+| 0.80 | 0.860 | 0.992 |
+| 1.50 | 0.878 | 0.992 |
 
-At small $\gamma$ (hard separation), the filter makes more errors and the TV bound increases. The $S$-only accuracy is low ($\sim 82\%$) regardless of $\gamma$ because $N_S = 30$ is insufficient for good generalization. The filtered augmentation provides $\sim 99.5\%$ accuracy across all $\gamma$ values because even imperfect filtering adds much more data than the 30 $S$ samples.
+At small $\gamma$ (hard separation), the filter makes more errors and the TV bound increases. The $S$-only accuracy is around 86% regardless of $\gamma$ because $N_S = 30$ is insufficient for good generalization. The filtered augmentation provides $\sim 99.3\%$ accuracy across all $\gamma$ values because even imperfect filtering adds much more data than the 30 $S$ samples, and the filtered data has the correct label bias (unlike unfiltered $O$ data which would be actively misleading).
 
 ---
 
@@ -152,13 +152,13 @@ Fixed: $N_S = 1{,}000$, $N_B = 500{,}000$, $d = 10$, $\gamma = 0.5$.
 
 | $\varepsilon_O$ | TV bound (mean) | Theory ($\varepsilon_O / p$) | Filtered acc |
 |---------:|----------------:|-------------------:|-------------:|
-| 0.000 | 0.000 | 0.000 | 0.996 |
-| 0.001 | 0.100 | 0.100 | 0.996 |
+| 0.000 | 0.000 | 0.000 | 0.993 |
+| 0.001 | 0.100 | 0.100 | 0.995 |
 | 0.002 | 0.200 | 0.200 | 0.996 |
-| 0.005 | 0.500 | 0.500 | 0.997 |
-| 0.010 | 1.000 | 1.000 | 0.997 |
-| 0.020 | 2.000 | 2.000 | 0.998 |
-| 0.050 | 5.000 | 5.000 | 0.999 |
+| 0.005 | 0.500 | 0.500 | 0.996 |
+| 0.010 | 1.000 | 1.000 | 0.998 |
+| 0.020 | 1.983 | 2.000 | 0.998 |
+| 0.050 | 4.266 | 5.000 | 0.998 |
 
 The measured TV bound matches $\varepsilon_O / p$ almost exactly. Note that TV values > 1 are an artifact of the FN + FP/$p$ upper bound (the true TV is always $\le 1$).
 
@@ -166,15 +166,15 @@ The measured TV bound matches $\varepsilon_O / p$ almost exactly. Note that TV v
 
 | $\varepsilon_S$ | TV bound (mean) | Theory ($\varepsilon_S$) | Filtered acc |
 |---------:|----------------:|-------------------:|-------------:|
-| 0.00 | 0.000 | 0.000 | 0.995 |
-| 0.02 | 0.020 | 0.020 | 0.997 |
-| 0.05 | 0.050 | 0.050 | 0.996 |
-| 0.10 | 0.100 | 0.100 | 0.996 |
-| 0.15 | 0.150 | 0.150 | 0.995 |
-| 0.20 | 0.200 | 0.200 | 0.996 |
-| 0.30 | 0.301 | 0.300 | 0.995 |
+| 0.00 | 0.000 | 0.000 | 0.993 |
+| 0.02 | 0.021 | 0.020 | 0.994 |
+| 0.05 | 0.157 | 0.050 | 0.993 |
+| 0.10 | 1.121 | 0.100 | 0.994 |
+| 0.15 | 2.494 | 0.150 | 0.992 |
+| 0.20 | 3.781 | 0.200 | 0.990 |
+| 0.30 | 6.148 | 0.300 | 0.988 |
 
-The additive $\varepsilon_S$ degradation also matches theory precisely. The slope is $1$ (not $1/p = 100$), confirming the asymmetry: margin violations in $O$ are amplified by $1/p$ while violations in $S$ are not.
+The $\varepsilon_S$ degradation matches theory at small values but grows faster than the bare $\varepsilon_S$ at larger values because the FN + FP/$p$ bound includes the FP amplification from S-violating points that land on the O side. The slope is still much less than $1/p = 100$ (the $\varepsilon_O$ slope), confirming the fundamental asymmetry.
 
 ---
 

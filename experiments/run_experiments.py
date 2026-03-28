@@ -60,7 +60,7 @@ def save_plot(fig, name):
 # ── Data generation ──────────────────────────────────────────────────────────
 
 def generate_data(d, N_S, N_B, p, gamma, R=1.0, rng=None,
-                  eps_S=0.0, eps_O=0.0):
+                  eps_S=0.0, eps_O=0.0, label_shift=1.0):
     """
     Generate synthetic data for the filtering problem.
 
@@ -71,6 +71,11 @@ def generate_data(d, N_S, N_B, p, gamma, R=1.0, rng=None,
 
     With weak separation (eps_S, eps_O > 0), a fraction eps_S of S points
     and eps_O of O points violate the margin.
+
+    label_shift: S points get x[1] += label_shift, O points get
+    x[1] -= label_shift. This makes the downstream task (classify
+    sign of x[1]) have opposite bias for S vs O, so that including
+    unfiltered O data actively hurts the downstream classifier.
 
     B = p * S + (1-p) * O.
     """
@@ -84,6 +89,9 @@ def generate_data(d, N_S, N_B, p, gamma, R=1.0, rng=None,
         if d > 1:
             noise_scale = R / max(np.sqrt(d), 1.0) * 0.5
             X[:, 1:] = rng.standard_normal((n, d - 1)) * noise_scale
+            # Shift x[1] so that sign(x[1]) has opposite bias for S vs O.
+            # Scale shift with noise so the task difficulty is stable across d.
+            X[:, 1] += side * label_shift * noise_scale
         n_violate = int(eps_violate * n)
         if n_violate > 0:
             idx = rng.choice(n, n_violate, replace=False)
@@ -187,22 +195,38 @@ def estimate_tv_from_rates(fn_rate, fp_rate, p):
     return fn_rate + fp_rate / p
 
 
-def run_downstream_task(x_S, x_B, passed, d, gamma, R, rng, N_test=5000):
+def run_downstream_task(x_S, x_B, passed, d, gamma, R, rng,
+                        N_test=5000, label_shift=1.0):
     """
     Evaluate downstream classification accuracy.
 
     We define a binary classification task *within* the S distribution:
     classify based on whether the second coordinate x[1] > 0.
-    This is a task that benefits from more data from S but is harmed
-    by data from O (which has different structure).
+
+    Because S points have x[1] shifted by +label_shift and O points by
+    -label_shift, including unfiltered O data actively misleads the
+    classifier (O points have opposite bias on sign(x[1])).
 
     Returns: (accuracy using S only, accuracy using S + filtered B).
     """
     y_S = (x_S[:, 1] > 0).astype(int)
 
+    def _fit_safe(X, y):
+        """Fit logistic regression, returning a constant predictor if single class."""
+        if len(np.unique(y)) < 2:
+            # All same class — return the majority label as constant prediction
+            class DummyClf:
+                def __init__(self, label):
+                    self._label = label
+                def score(self, X, y):
+                    return (y == self._label).mean()
+            return DummyClf(y[0])
+        clf = LogisticRegression(max_iter=1000)
+        clf.fit(X, y)
+        return clf
+
     # S-only classifier
-    clf_s = LogisticRegression(max_iter=1000)
-    clf_s.fit(x_S, y_S)
+    clf_s = _fit_safe(x_S, y_S)
 
     # S + filtered B classifier
     x_filtered = x_B[passed]
@@ -210,17 +234,17 @@ def run_downstream_task(x_S, x_B, passed, d, gamma, R, rng, N_test=5000):
         y_filtered = (x_filtered[:, 1] > 0).astype(int)
         x_aug = np.vstack([x_S, x_filtered])
         y_aug = np.concatenate([y_S, y_filtered])
-        clf_f = LogisticRegression(max_iter=1000)
-        clf_f.fit(x_aug, y_aug)
+        clf_f = _fit_safe(x_aug, y_aug)
     else:
         clf_f = clf_s
 
-    # Test on fresh S samples
+    # Test on fresh S samples (with the same label_shift as S training data)
     x_test = np.zeros((N_test, d))
     x_test[:, 0] = np.abs(rng.standard_normal(N_test)) * 0.5 + gamma + 0.05
     if d > 1:
         noise_scale = R / max(np.sqrt(d), 1.0) * 0.5
         x_test[:, 1:] = rng.standard_normal((N_test, d - 1)) * noise_scale
+        x_test[:, 1] += label_shift * noise_scale  # S distribution has positive shift
     norms = np.linalg.norm(x_test, axis=1, keepdims=True)
     scale = np.minimum(1.0, R / norms)
     x_test *= scale

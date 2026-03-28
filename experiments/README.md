@@ -21,11 +21,11 @@ Plots are saved to `plots/`, raw data to `data/` (as JSON for easy re-plotting).
 
 **Algorithm**: The paper solves a constrained optimization: find w (||w|| <= 1) that classifies all S samples as positive (with margin gamma) while minimizing the number of B samples classified as positive. We approximate this with sklearn's `LinearSVC` using asymmetric class weights (weight ratio N_B/N_S on the positive class).
 
-**Downstream task**: To measure practical benefit, we define a binary classification problem *within* the S distribution (classify based on sign of the second coordinate). We train logistic regression using (a) only S samples, and (b) S samples augmented with filtered B samples, then test on fresh S data. This models the real-world scenario where filtering lets you augment a small labeled dataset.
+**Downstream task**: To measure practical benefit, we define a binary classification problem *within* the S distribution (classify based on sign of the second coordinate x[1]). Crucially, the S and O distributions have opposite biases on x[1]: S has x[1] shifted positive (P(x[1]>0|S) ≈ 0.84) while O has x[1] shifted negative (P(x[1]>0|O) ≈ 0.16). This means including unfiltered O data actively *hurts* the downstream classifier by providing misleading labels. We train logistic regression using (a) only S samples, and (b) S samples augmented with filtered B samples, then test on fresh S data. This models the real-world scenario where filtering lets you augment a small labeled dataset with relevant data while excluding harmful off-distribution data.
 
 ## Data generation
 
-Data lives in R^d. The target distribution S has its first coordinate x[0] > gamma (plus Gaussian noise), while the other distribution O has x[0] < -gamma. Remaining coordinates are isotropic Gaussian noise scaled as R/(2*sqrt(d)) so that total norms stay bounded by R regardless of dimension. For weak separation experiments, a fraction eps_S (resp. eps_O) of S (resp. O) points violate the margin.
+Data lives in R^d. The target distribution S has its first coordinate x[0] > gamma (plus Gaussian noise), while the other distribution O has x[0] < -gamma. Remaining coordinates are isotropic Gaussian noise scaled as noise_scale = R/(2*sqrt(d)) so that total norms stay bounded by R regardless of dimension. The second coordinate x[1] is shifted by +label_shift * noise_scale for S and -label_shift * noise_scale for O (default label_shift=1.0), creating opposite label biases for the downstream task. For weak separation experiments, a fraction eps_S (resp. eps_O) of S (resp. O) points violate the margin.
 
 ## Experiments
 
@@ -164,7 +164,7 @@ Each experiment saves a JSON file containing all parameters and results, enablin
 
 - **TV estimation**: We use two approaches: (1) histogram-based on the separating coordinate (synthetic experiments 1–2), and (2) the FN + FP/p upper bound from the paper (synthetic experiments 3–5). The histogram approach captures the full distributional distance but has estimation noise; the FP/FN approach is cleaner but is an upper bound.
 
-- **Downstream task (synthetic)**: The binary classification task (sign of x[1]) is deliberately simple, so that the benefit of more data is clear and measurable. With only N_S training points from S, the classifier has limited accuracy; adding filtered B data provides many more training points from (approximately) the S distribution, directly improving generalization.
+- **Downstream task (synthetic)**: The binary classification task (sign of x[1]) is deliberately simple, so that the benefit of more data is clear and measurable. The S and O distributions have *opposite* biases on x[1] (S shifted positive, O shifted negative), so including O data without filtering actively hurts the classifier. With only N_S training points from S, the classifier has limited accuracy; adding filtered B data provides many more training points from (approximately) the S distribution, directly improving generalization.
 
 - **Downstream task (real-world)**: We use balanced accuracy (average of per-class recall) instead of raw accuracy, which gives a more meaningful metric when classes are highly imbalanced (e.g., Covertype with p=0.005). To prevent noisy filtered samples from overwhelming clean S data, we cap the number of filtered samples added to at most 5·N_S and balance the number of negative training samples accordingly.
 
