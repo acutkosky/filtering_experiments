@@ -356,10 +356,6 @@ def experiment_vary_N_S(n_trials=10):
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(N_S_values, results["tv_mean"], yerr=results["tv_std"],
                 fmt="o-", capsize=4, label="Estimated TV distance", color="C0")
-    c = results["tv_mean"][2] * N_S_values[2]
-    ref = [c / n for n in N_S_values]
-    ax.plot(N_S_values, ref, "--", color="C1", alpha=0.7,
-            label=r"$\propto 1/N_S$ (theory)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
@@ -431,13 +427,6 @@ def experiment_vary_N_B(n_trials=10):
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(N_B_values, results["tv_mean"], yerr=results["tv_std"],
                 fmt="o-", capsize=4, label="Estimated TV distance", color="C0")
-    mid = 3
-    c = results["tv_mean"][mid] * (p * N_B_values[mid])
-    ref = [c / (p * n) for n in N_B_values]
-    ax.plot(N_B_values, ref, "--", color="C1", alpha=0.7,
-            label=r"$\propto 1/(p \cdot N_B)$ (theory)")
-    ax.axhline(y=results["tv_mean"][-1], color="gray", linestyle=":", alpha=0.5,
-               label=r"$\approx$ floor from $1/N_S$ term")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
@@ -598,11 +587,6 @@ def experiment_vary_gamma(n_trials=15):
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(gamma_values, results["tv_mean"], yerr=results["tv_std"],
                 fmt="o-", capsize=4, label=r"TV bound (FN + FP/$p$)", color="C0")
-    mid = len(gamma_values) // 2
-    c = results["tv_mean"][mid] * gamma_values[mid]**2 / R**2
-    ref = [c * R**2 / g**2 for g in gamma_values]
-    ax.plot(gamma_values, ref, "--", color="C1", alpha=0.7,
-            label=r"$\propto R^2/\gamma^2$ (theory)")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel(r"Margin $\gamma$")
