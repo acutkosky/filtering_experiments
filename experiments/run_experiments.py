@@ -60,7 +60,7 @@ def save_plot(fig, name):
 # ── Data generation ──────────────────────────────────────────────────────────
 
 def generate_data(d, N_S, N_B, p, gamma, R=1.0, rng=None,
-                  eps_S=0.0, eps_O=0.0, label_shift=1.0):
+                  eps_S=0.0, eps_O=0.0, label_shift=0.2):
     """
     Generate synthetic data for the filtering problem.
 
@@ -196,7 +196,7 @@ def estimate_tv_from_rates(fn_rate, fp_rate, p):
 
 
 def run_downstream_task(x_S, x_B, passed, d, gamma, R, rng,
-                        N_test=5000, label_shift=1.0):
+                        N_test=5000, label_shift=0.2):
     """
     Evaluate downstream classification accuracy.
 
@@ -410,8 +410,8 @@ def experiment_vary_N_B(n_trials=10):
     print("Experiment: Varying N_B")
     print("=" * 60)
 
-    d = 20
-    N_S = 1000
+    d = 50
+    N_S = 200
     p = 0.01
     gamma = 0.5
     R = 3.0

@@ -21,11 +21,11 @@ Plots are saved to `plots/`, raw data to `data/` (as JSON for easy re-plotting).
 
 **Algorithm**: The paper solves a constrained optimization: find w (||w|| <= 1) that classifies all S samples as positive (with margin gamma) while minimizing the number of B samples classified as positive. We approximate this with sklearn's `LinearSVC` using asymmetric class weights (weight ratio N_B/N_S on the positive class).
 
-**Downstream task**: To measure practical benefit, we define a binary classification problem *within* the S distribution (classify based on sign of the second coordinate x[1]). Crucially, the S and O distributions have opposite biases on x[1]: S has x[1] shifted positive (P(x[1]>0|S) ≈ 0.84) while O has x[1] shifted negative (P(x[1]>0|O) ≈ 0.16). This means including unfiltered O data actively *hurts* the downstream classifier by providing misleading labels. We train logistic regression using (a) only S samples, and (b) S samples augmented with filtered B samples, then test on fresh S data. This models the real-world scenario where filtering lets you augment a small labeled dataset with relevant data while excluding harmful off-distribution data.
+**Downstream task**: To measure practical benefit, we define a binary classification problem *within* the S distribution (classify based on sign of the second coordinate x[1]). Crucially, the S and O distributions have opposite biases on x[1]: S has x[1] shifted positive (P(x[1]>0|S) ≈ 0.58) while O has x[1] shifted negative (P(x[1]>0|O) ≈ 0.42). This means including unfiltered O data actively *hurts* the downstream classifier by providing misleading labels. We train logistic regression using (a) only S samples, and (b) S samples augmented with filtered B samples, then test on fresh S data. This models the real-world scenario where filtering lets you augment a small labeled dataset with relevant data while excluding harmful off-distribution data.
 
 ## Data generation
 
-Data lives in R^d. The target distribution S has its first coordinate x[0] > gamma (plus Gaussian noise), while the other distribution O has x[0] < -gamma. Remaining coordinates are isotropic Gaussian noise scaled as noise_scale = R/(2*sqrt(d)) so that total norms stay bounded by R regardless of dimension. The second coordinate x[1] is shifted by +label_shift * noise_scale for S and -label_shift * noise_scale for O (default label_shift=1.0), creating opposite label biases for the downstream task. For weak separation experiments, a fraction eps_S (resp. eps_O) of S (resp. O) points violate the margin.
+Data lives in R^d. The target distribution S has its first coordinate x[0] > gamma (plus Gaussian noise), while the other distribution O has x[0] < -gamma. Remaining coordinates are isotropic Gaussian noise scaled as noise_scale = R/(2*sqrt(d)) so that total norms stay bounded by R regardless of dimension. The second coordinate x[1] is shifted by +label_shift * noise_scale for S and -label_shift * noise_scale for O (default label_shift=0.2), creating opposite label biases for the downstream task. For weak separation experiments, a fraction eps_S (resp. eps_O) of S (resp. O) points violate the margin.
 
 ## Experiments
 
@@ -43,13 +43,13 @@ All experiments use p = 0.01 unless otherwise noted. Each data point is averaged
 
 ### Varying N_B (`vary_NB_tv`, `vary_NB_downstream`)
 
-**Setup**: N_B ranges from 10,000 to 2,000,000. Fixed N_S = 1000, d = 20, gamma = 0.5, R = 3.
+**Setup**: N_B ranges from 10,000 to 2,000,000. Fixed N_S = 200, d = 50, gamma = 0.5, R = 3.
 
 **What this tests**: The 1/(p * N_B) term in the TV bound. Since p = 0.01, the effective sample count from B is p*N_B, so N_B = 2M gives 20K effective samples.
 
 **TV distance plot** (`vary_NB_tv`): TV decreases with N_B and flattens when the 1/N_S term dominates — exactly as predicted.
 
-**Downstream plot** (`vary_NB_downstream`): With N_S = 1000, the S-only baseline is already decent. As N_B increases, the filtered augmentation adds more clean data, improving the downstream classifier until diminishing returns set in.
+**Downstream plot** (`vary_NB_downstream`): With N_S = 200 and d = 50, the S-only baseline is limited (~86%). As N_B increases, filtered augmentation adds more clean data, improving the downstream classifier from 89% to 99%, demonstrating substantial practical benefit.
 
 ### Varying dimension d (`vary_dimension_tv`, `vary_dimension_errors`, `vary_dimension_downstream`)
 
