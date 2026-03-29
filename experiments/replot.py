@@ -57,6 +57,9 @@ def plot_vary_NS():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(xs, d["acc_f_mean"], yerr=d["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in d:
+        ax.errorbar(xs, d["acc_r_mean"], yerr=d["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
     ax.set_ylabel("Downstream classification accuracy")
@@ -84,6 +87,9 @@ def plot_vary_NB():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(xs, d["acc_f_mean"], yerr=d["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in d:
+        ax.errorbar(xs, d["acc_r_mean"], yerr=d["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
     ax.set_ylabel("Downstream classification accuracy")
@@ -119,6 +125,9 @@ def plot_vary_dimension():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(xs, d["acc_f_mean"], yerr=d["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in d:
+        ax.errorbar(xs, d["acc_r_mean"], yerr=d["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel("Dimension $d$")
     ax.set_ylabel("Downstream classification accuracy")
@@ -145,6 +154,9 @@ def plot_vary_gamma():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(xs, d["acc_f_mean"], yerr=d["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in d:
+        ax.errorbar(xs, d["acc_r_mean"], yerr=d["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel(r"Margin $\gamma$")
     ax.set_ylabel("Downstream classification accuracy")
@@ -190,6 +202,9 @@ def plot_weak_separation():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(d["eps_O_values"], res_O["acc_f_mean"], yerr=res_O["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in res_O:
+        ax.errorbar(d["eps_O_values"], res_O["acc_r_mean"], yerr=res_O["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xlabel(r"$\varepsilon_O$ (fraction of $O$ violating margin)")
     ax.set_ylabel("Downstream classification accuracy")
     ax.set_title(rf"Downstream accuracy vs $\varepsilon_O$ ($p={p}$)")
@@ -201,6 +216,9 @@ def plot_weak_separation():
                 fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
     ax.errorbar(d["eps_S_values"], res_S["acc_f_mean"], yerr=res_S["acc_f_std"],
                 fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in res_S:
+        ax.errorbar(d["eps_S_values"], res_S["acc_r_mean"], yerr=res_S["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
     ax.set_xlabel(r"$\varepsilon_S$ (fraction of $S$ violating margin)")
     ax.set_ylabel("Downstream classification accuracy")
     ax.set_title(r"Downstream accuracy vs $\varepsilon_S$")

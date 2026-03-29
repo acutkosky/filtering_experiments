@@ -4,13 +4,12 @@ All synthetic experiments use: $p = 0.01$, $R = 3.0$. Values are means over 10--
 
 ## Downstream task description
 
-The downstream task is a binary classification problem defined *within* the target distribution $S$: classify points based on the sign of their second coordinate ($x_1 > 0$ vs $x_1 \le 0$). The $S$ and $O$ distributions have *opposite* biases on $x_1$: points from $S$ have $x_1$ shifted by $+0.2 \cdot \sigma$ (where $\sigma = R/(2\sqrt{d})$ is the per-coordinate noise scale), while points from $O$ have $x_1$ shifted by $-0.2 \cdot \sigma$. This means $\Pr[x_1 > 0 \mid S] \approx 0.58$ while $\Pr[x_1 > 0 \mid O] \approx 0.42$: the signal is weak but learnable with enough data.
+The downstream task is a binary classification problem defined *within* the target distribution $S$: classify points based on the sign of their second coordinate ($x_1 > 0$ vs $x_1 \le 0$). Points from $S$ have $x_1$ shifted by $+1.0 \cdot \sigma$ (where $\sigma = R/(2\sqrt{d})$ is the per-coordinate noise scale), making the label informative ($\Pr[x_1 > 0 \mid S] \approx 0.84$). Points from $O$ have *no shift* on $x_1$ and are assigned *random* labels (independent of $x$). This models the real-world scenario where a labeling oracle is meaningful for the target distribution but produces garbage on off-distribution data.
 
-Crucially, $S$ and $O$ have *opposite* label biases, so including unfiltered $O$ data actively *hurts* the downstream classifier — it provides misleading labels. This makes filtering essential rather than merely helpful.
-
-We train a logistic regression classifier in two settings:
+We train a logistic regression classifier in three settings:
 - **$S$-only**: trained using only the $N_S$ labeled samples from $S$.
-- **$S$+filtered**: trained on the $S$ samples augmented with samples from $B$ that pass the filter (labeled using $\text{sign}(x_1)$). This provides up to $p \cdot N_B$ additional approximately-$S$ samples, dramatically increasing effective training set size.
+- **$S$+filtered**: trained on $S$ augmented with filtered $B$ samples (which approximate $S$, so their labels are informative). Provides up to $\sim p \cdot N_B$ additional approximately-$S$ samples.
+- **$S$+unfiltered**: trained on $S$ augmented with the *same number* of random (unfiltered) $B$ samples. Since $\sim 99\%$ of $B$ is from $O$ with random labels, this injects massive label noise that actively degrades the classifier.
 
 Test accuracy is measured on 5,000 fresh samples from $S$.
 
@@ -40,17 +39,17 @@ TV distance is estimated in two ways:
 
 **Downstream accuracy** (binary classification on sign of $x_1$):
 
-| $N_S$ | $S$-only acc | $S$+filtered acc |
-|------:|-------------:|-----------------:|
-| 50 | 0.829 | 0.993 |
-| 100 | 0.881 | 0.992 |
-| 200 | 0.925 | 0.992 |
-| 500 | 0.963 | 0.992 |
-| 1,000 | 0.975 | 0.992 |
-| 2,000 | 0.987 | 0.994 |
-| 5,000 | 0.993 | 0.996 |
+| $N_S$ | $S$-only acc | $S$+filtered acc | $S$+unfiltered acc |
+|------:|-------------:|-----------------:|-------------------:|
+| 50 | 0.863 | 0.989 | 0.841 |
+| 100 | 0.879 | 0.991 | 0.844 |
+| 200 | 0.912 | 0.989 | 0.844 |
+| 500 | 0.945 | 0.990 | 0.843 |
+| 1,000 | 0.963 | 0.990 | 0.839 |
+| 2,000 | 0.980 | 0.991 | 0.842 |
+| 5,000 | 0.988 | 0.993 | 0.849 |
 
-With only $N_S = 50$ target samples, the $S$-only classifier achieves 83% accuracy, while augmenting with filtered $B$ (which provides $\sim p \cdot N_B = 5{,}000$ additional approximately-$S$ samples) jumps to 99%. The gap narrows as $N_S$ increases since $S$ alone eventually suffices. Because the $O$ distribution has the opposite label bias, including unfiltered $B$ data would actively hurt the classifier — filtering is essential.
+With only $N_S = 50$ target samples, the $S$-only classifier achieves 86% accuracy, while augmenting with filtered $B$ (which provides $\sim p \cdot N_B = 5{,}000$ additional approximately-$S$ samples) jumps to 99%. The unfiltered baseline stays flat at $\sim 84\%$ — worse than $S$-only — because $\sim 99\%$ of unfiltered $B$ is from $O$ with random labels, which injects massive label noise. The gap between filtered and $S$-only narrows as $N_S$ increases since $S$ alone eventually suffices.
 
 ---
 
@@ -72,17 +71,17 @@ With only $N_S = 50$ target samples, the $S$-only classifier achieves 83% accura
 
 **Downstream accuracy:**
 
-| $N_B$ | $S$-only acc | $S$+filtered acc |
-|------:|-------------:|-----------------:|
-| 10,000 | 0.854 | 0.892 |
-| 50,000 | 0.863 | 0.945 |
-| 100,000 | 0.857 | 0.958 |
-| 200,000 | 0.858 | 0.971 |
-| 500,000 | 0.861 | 0.985 |
-| 1,000,000 | 0.861 | 0.991 |
-| 2,000,000 | 0.859 | 0.994 |
+| $N_B$ | $S$-only acc | $S$+filtered acc | $S$+unfiltered acc |
+|------:|-------------:|-----------------:|-------------------:|
+| 10,000 | 0.869 | 0.888 | 0.860 |
+| 50,000 | 0.864 | 0.927 | 0.845 |
+| 100,000 | 0.865 | 0.944 | 0.844 |
+| 200,000 | 0.861 | 0.962 | 0.841 |
+| 500,000 | 0.876 | 0.980 | 0.844 |
+| 1,000,000 | 0.877 | 0.986 | 0.839 |
+| 2,000,000 | 0.870 | 0.992 | 0.841 |
 
-The $S$-only baseline is flat at $\sim 86\%$ (limited by the small $N_S = 200$), while filtered accuracy climbs steadily from 89% to 99% as more $B$ data becomes available. This clearly demonstrates the paper's key practical insight: even when only a small fraction $p = 1\%$ of the big dataset comes from the target distribution, filtering can extract enough useful data to dramatically improve downstream performance.
+The $S$-only baseline is flat at $\sim 87\%$ (limited by the small $N_S = 200$), while filtered accuracy climbs steadily from 89% to 99% as more $B$ data becomes available. The unfiltered baseline is *worse* than $S$-only at $\sim 84\%$: since $99\%$ of $B$ comes from $O$ with random labels, adding unfiltered data injects noise that actively degrades the classifier. This clearly demonstrates the paper's key practical insight: filtering is not just helpful but *essential* — naive data augmentation hurts.
 
 ---
 
@@ -106,19 +105,19 @@ The $S$-only baseline is flat at $\sim 86\%$ (limited by the small $N_S = 200$),
 
 **Downstream accuracy:**
 
-| $d$ | $S$-only acc | $S$+filtered acc |
-|----:|-------------:|-----------------:|
-| 2 | 0.995 | 0.999 |
-| 5 | 0.990 | 0.997 |
-| 10 | 0.985 | 0.996 |
-| 20 | 0.977 | 0.993 |
-| 50 | 0.956 | 0.988 |
-| 100 | 0.926 | 0.980 |
-| 200 | 0.888 | 0.967 |
-| 500 | 0.804 | 0.938 |
-| 1,000 | 0.729 | 0.885 |
+| $d$ | $S$-only acc | $S$+filtered acc | $S$+unfiltered acc |
+|----:|-------------:|-----------------:|-------------------:|
+| 2 | 0.993 | 0.998 | 0.837 |
+| 5 | 0.985 | 0.996 | 0.844 |
+| 10 | 0.980 | 0.994 | 0.844 |
+| 20 | 0.965 | 0.990 | 0.840 |
+| 50 | 0.941 | 0.982 | 0.841 |
+| 100 | 0.907 | 0.970 | 0.840 |
+| 200 | 0.879 | 0.952 | 0.843 |
+| 500 | 0.845 | 0.919 | 0.837 |
+| 1,000 | 0.844 | 0.878 | 0.837 |
 
-The TV bound stays at zero for $d \le 200$, confirming the dimension-free theoretical prediction. Degradation at $d = 500$--$1000$ is an artifact of the SVM solver (linear model with $d$ parameters and only $N_S = 1{,}000$ training points), not the theory. Filtering consistently improves over $S$-only across all dimensions, with the gap being largest (5--13 percentage points) in the moderate-to-high $d$ range where the $S$-only classifier struggles but the filter still works well.
+The TV bound stays at zero for $d \le 200$, confirming the dimension-free theoretical prediction. Degradation at $d = 500$--$1000$ is an artifact of the SVM solver (linear model with $d$ parameters and only $N_S = 1{,}000$ training points), not the theory. Filtering consistently improves over $S$-only across all dimensions. The unfiltered baseline is flat at $\sim 84\%$ regardless of dimension — it is always worse than $S$-only because the random $O$ labels dominate. The gap between filtered and $S$-only is largest (5--8 percentage points) in the moderate-to-high $d$ range where the $S$-only classifier struggles but the filter still works well.
 
 ---
 
@@ -141,18 +140,18 @@ The TV bound stays at zero for $d \le 200$, confirming the dimension-free theore
 
 **Downstream accuracy:**
 
-| $\gamma$ | $S$-only acc | $S$+filtered acc |
-|---------:|-------------:|-----------------:|
-| 0.02 | 0.834 | 0.996 |
-| 0.05 | 0.824 | 0.995 |
-| 0.10 | 0.817 | 0.996 |
-| 0.20 | 0.800 | 0.996 |
-| 0.30 | 0.831 | 0.995 |
-| 0.50 | 0.816 | 0.995 |
-| 0.80 | 0.811 | 0.995 |
-| 1.50 | 0.842 | 0.995 |
+| $\gamma$ | $S$-only acc | $S$+filtered acc | $S$+unfiltered acc |
+|---------:|-------------:|-----------------:|-------------------:|
+| 0.02 | 0.859 | 0.934 | 0.828 |
+| 0.05 | 0.861 | 0.970 | 0.843 |
+| 0.10 | 0.864 | 0.983 | 0.832 |
+| 0.20 | 0.853 | 0.992 | 0.835 |
+| 0.30 | 0.869 | 0.992 | 0.843 |
+| 0.50 | 0.870 | 0.993 | 0.841 |
+| 0.80 | 0.860 | 0.992 | 0.841 |
+| 1.50 | 0.877 | 0.993 | 0.840 |
 
-At small $\gamma$ (hard separation), the filter makes more errors and the TV bound increases. The $S$-only accuracy is around 80--84% regardless of $\gamma$ because $N_S = 30$ is insufficient for good generalization. The filtered augmentation provides $\sim 99.5\%$ accuracy across all $\gamma$ values because even imperfect filtering adds much more data than the 30 $S$ samples, and the filtered data has the correct label bias (unlike unfiltered $O$ data which would be actively misleading).
+At small $\gamma$ (hard separation), the filter makes more errors and the TV bound increases. The $S$-only accuracy is around 85--88% regardless of $\gamma$ because $N_S = 30$ is insufficient for good generalization. The filtered augmentation provides 93--99% accuracy, with the benefit increasing as $\gamma$ grows and filtering becomes cleaner. The unfiltered baseline stays at $\sim 84\%$ — worse than $S$-only — because the random $O$ labels dominate and actively mislead the classifier.
 
 ---
 
@@ -164,31 +163,31 @@ Fixed: $N_S = 1{,}000$, $N_B = 500{,}000$, $d = 10$, $\gamma = 0.5$, $p = 0.01$,
 
 **Varying $\varepsilon_O$** (fraction of $O$ violating margin):
 
-| $\varepsilon_O$ | TV bound (mean) | Theory ($\varepsilon_O / p$) | Filtered acc |
-|---------:|----------------:|-------------------:|-------------:|
-| 0.000 | 0.000 | 0.000 | 0.996 |
-| 0.001 | 0.100 | 0.100 | 0.996 |
-| 0.002 | 0.200 | 0.200 | 0.997 |
-| 0.005 | 0.500 | 0.500 | 0.997 |
-| 0.010 | 1.000 | 1.000 | 0.997 |
-| 0.020 | 2.000 | 2.000 | 0.998 |
-| 0.050 | 5.000 | 5.000 | 0.999 |
+| $\varepsilon_O$ | TV bound (mean) | Theory ($\varepsilon_O / p$) | $S$-only acc | Filtered acc | Unfiltered acc |
+|---------:|----------------:|-------------------:|-------------:|-------------:|---------------:|
+| 0.000 | 0.000 | 0.000 | 0.976 | 0.993 | 0.838 |
+| 0.001 | 0.100 | 0.100 | 0.981 | 0.972 | 0.842 |
+| 0.002 | 0.200 | 0.200 | 0.979 | 0.957 | 0.840 |
+| 0.005 | 0.500 | 0.500 | 0.978 | 0.932 | 0.841 |
+| 0.010 | 1.000 | 1.000 | 0.978 | 0.916 | 0.840 |
+| 0.020 | 2.000 | 2.000 | 0.978 | 0.906 | 0.839 |
+| 0.050 | 5.000 | 5.000 | 0.977 | 0.903 | 0.842 |
 
 The measured TV bound matches $\varepsilon_O / p$ almost exactly. Note that TV values > 1 are an artifact of the FN + FP/$p$ upper bound (the true TV is always $\le 1$).
 
 **Varying $\varepsilon_S$** (fraction of $S$ violating margin):
 
-| $\varepsilon_S$ | TV bound (mean) | Theory ($\varepsilon_S$) | Filtered acc |
-|---------:|----------------:|-------------------:|-------------:|
-| 0.00 | 0.000 | 0.000 | 0.995 |
-| 0.02 | 0.020 | 0.020 | 0.996 |
-| 0.05 | 0.050 | 0.050 | 0.995 |
-| 0.10 | 0.100 | 0.100 | 0.996 |
-| 0.15 | 0.154 | 0.150 | 0.996 |
-| 0.20 | 0.238 | 0.200 | 0.995 |
-| 0.30 | 0.851 | 0.300 | 0.995 |
+| $\varepsilon_S$ | TV bound (mean) | Theory ($\varepsilon_S$) | $S$-only acc | Filtered acc | Unfiltered acc |
+|---------:|----------------:|-------------------:|-------------:|-------------:|---------------:|
+| 0.00 | 0.000 | 0.000 | 0.979 | 0.994 | 0.842 |
+| 0.02 | 0.020 | 0.020 | 0.980 | 0.994 | 0.841 |
+| 0.05 | 0.050 | 0.050 | 0.978 | 0.994 | 0.842 |
+| 0.10 | 0.170 | 0.100 | 0.982 | 0.946 | 0.842 |
+| 0.15 | 0.804 | 0.150 | 0.978 | 0.918 | 0.840 |
+| 0.20 | 1.909 | 0.200 | 0.980 | 0.890 | 0.843 |
+| 0.30 | 5.402 | 0.300 | 0.978 | 0.846 | 0.841 |
 
-The $\varepsilon_S$ degradation matches theory closely at small values but grows faster at larger values because the FN + FP/$p$ bound includes FP amplification from $S$-violating points that land on the $O$ side. The slope is still much less than $1/p = 100$ (the $\varepsilon_O$ slope), confirming the fundamental asymmetry.
+The $\varepsilon_S$ degradation matches theory closely at small values but grows faster at larger values because the FN + FP/$p$ bound includes FP amplification from $S$-violating points that land on the $O$ side. The slope is still much less than $1/p = 100$ (the $\varepsilon_O$ slope), confirming the fundamental asymmetry. The unfiltered baseline stays flat at $\sim 84\%$ throughout. Note that at large $\varepsilon_S = 0.30$, filtered accuracy degrades to near the unfiltered level, as the margin violations make filtering ineffective.
 
 ---
 
