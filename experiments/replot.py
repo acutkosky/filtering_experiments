@@ -228,38 +228,38 @@ def plot_weak_separation():
 
 # ── Real-world plots ─────────────────────────────────────────────────────────
 
-def plot_newsgroups():
-    d = load("newsgroups")
-    all_results = d["results"]
-    topics = d["topics"]
-    short_names = [t.split(".")[-1] for t in topics]
-
+def _plot_bar_chart(all_results, keys, labels, title, plot_name):
+    """Generic bar chart for real-world experiments."""
     fig, ax = plt.subplots(figsize=(10, 5))
-    x_pos = np.arange(len(topics))
+    x_pos = np.arange(len(keys))
     width = 0.2
-    for i, (key, label, color) in enumerate([
-        ("acc_s_only", r"$S$ only ($N_S=200$)", "C3"),
+    for i, (metric, label, color) in enumerate([
+        ("acc_s_only", r"$S$ only", "C3"),
         ("acc_filtered", r"$S$ + filtered $B$", "C0"),
         ("acc_random", r"$S$ + random $B$", "C1"),
-        ("acc_oracle", "Oracle (all labels)", "C2"),
+        ("acc_oracle", "Oracle", "C2"),
     ]):
-        means = [np.mean(all_results[t][key]) for t in topics]
-        stds = [np.std(all_results[t][key]) for t in topics]
+        means = [np.mean(all_results[k][metric]) for k in keys]
+        stds = [np.std(all_results[k][metric]) for k in keys]
         ax.bar(x_pos + (i - 1.5)*width, means, width, yerr=stds, capsize=3,
                label=label, color=color, alpha=0.8)
-    ax.set_xticks(x_pos); ax.set_xticklabels(short_names)
+    ax.set_xticks(x_pos); ax.set_xticklabels(labels)
     ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("20 Newsgroups: filtering improves downstream classification")
+    ax.set_title(title)
     ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis="y")
-    save_plot(fig, "newsgroups_downstream")
+    save_plot(fig, plot_name)
 
+
+def _plot_error_rates(all_results, keys, labels, title, plot_name):
+    """Generic error rate bar chart."""
     fig, ax = plt.subplots(figsize=(9, 5))
+    x_pos = np.arange(len(keys))
     w2 = 0.25
-    fn_means = [np.mean(all_results[t]["fn_rates"]) for t in topics]
-    fn_stds = [np.std(all_results[t]["fn_rates"]) for t in topics]
-    fp_means = [np.mean(all_results[t]["fp_rates"]) for t in topics]
-    fp_stds = [np.std(all_results[t]["fp_rates"]) for t in topics]
-    prec_means = [np.mean(all_results[t]["precisions"]) for t in topics]
+    fn_means = [np.mean(all_results[k]["fn_rates"]) for k in keys]
+    fn_stds = [np.std(all_results[k]["fn_rates"]) for k in keys]
+    fp_means = [np.mean(all_results[k]["fp_rates"]) for k in keys]
+    fp_stds = [np.std(all_results[k]["fp_rates"]) for k in keys]
+    prec_means = [np.mean(all_results[k]["precisions"]) for k in keys]
     ax.bar(x_pos - w2/2, fn_means, w2, yerr=fn_stds, capsize=4,
            label="False negative rate", color="C3", alpha=0.8)
     ax.bar(x_pos + w2/2, fp_means, w2, yerr=fp_stds, capsize=4,
@@ -267,16 +267,30 @@ def plot_newsgroups():
     for i, p in enumerate(prec_means):
         ax.annotate(f"prec={p:.2f}", (x_pos[i], max(fn_means[i], fp_means[i]) + 0.02),
                     ha="center", fontsize=9)
-    ax.set_xticks(x_pos); ax.set_xticklabels(short_names)
+    ax.set_xticks(x_pos); ax.set_xticklabels(labels)
     ax.set_ylabel("Error rate")
-    ax.set_title("20 Newsgroups: filter FP/FN rates across topics")
+    ax.set_title(title)
     ax.legend(); ax.grid(True, alpha=0.3, axis="y")
-    save_plot(fig, "newsgroups_error_rates")
+    save_plot(fig, plot_name)
+
+
+def plot_newsgroups():
+    d = load("newsgroups")
+    all_results = d["results"]
+    pairs = d.get("pairs", d.get("topics", []))
+
+    _plot_bar_chart(all_results, pairs, pairs,
+                    "20 Newsgroups: filtering improves within-S classification",
+                    "newsgroups_downstream")
+    _plot_error_rates(all_results, pairs, pairs,
+                      "20 Newsgroups: filter FP/FN rates",
+                      "newsgroups_error_rates")
 
 
 def plot_newsgroups_vary_NS():
     d = load("newsgroups_vary_NS")
     xs = d["N_S_values"]
+    pair = d.get("pair", "sci.space")
 
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(xs, d["acc_s_mean"], yerr=d["acc_s_std"],
@@ -289,7 +303,7 @@ def plot_newsgroups_vary_NS():
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
     ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("20 Newsgroups (sci.space): accuracy vs $N_S$")
+    ax.set_title(f"20 Newsgroups ({pair}): accuracy vs $N_S$")
     ax.legend(); ax.grid(True, alpha=0.3)
     save_plot(fig, "newsgroups_vary_NS_downstream")
 
@@ -300,7 +314,7 @@ def plot_newsgroups_vary_NS():
                 fmt="s-", capsize=4, label="False positive rate", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$"); ax.set_ylabel("Error rate")
-    ax.set_title("20 Newsgroups (sci.space): filter errors vs $N_S$")
+    ax.set_title(f"20 Newsgroups ({pair}): filter errors vs $N_S$")
     ax.legend(); ax.grid(True, alpha=0.3)
     save_plot(fig, "newsgroups_vary_NS_errors")
 
@@ -308,49 +322,20 @@ def plot_newsgroups_vary_NS():
 def plot_mnist():
     d = load("mnist")
     all_results = d["results"]
-    digits = [str(x) for x in d["digits"]]
+    pairs = d.get("pairs", [str(x) for x in d.get("digits", [])])
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    x_pos = np.arange(len(digits))
-    width = 0.2
-    for i, (key, label, color) in enumerate([
-        ("acc_s_only", r"$S$ only ($N_S=200$)", "C3"),
-        ("acc_filtered", r"$S$ + filtered $B$", "C0"),
-        ("acc_random", r"$S$ + random $B$", "C1"),
-        ("acc_oracle", "Oracle (all labels)", "C2"),
-    ]):
-        means = [np.mean(all_results[dig][key]) for dig in digits]
-        stds = [np.std(all_results[dig][key]) for dig in digits]
-        ax.bar(x_pos + (i - 1.5)*width, means, width, yerr=stds, capsize=3,
-               label=label, color=color, alpha=0.8)
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels([f"Digit {dig}" for dig in digits])
-    ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("MNIST: filtering improves downstream classification ($N_S=200$)")
-    ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis="y")
-    save_plot(fig, "mnist_downstream")
-
-    fig, ax = plt.subplots(figsize=(9, 5))
-    w2 = 0.25
-    fn_means = [np.mean(all_results[dig]["fn_rates"]) for dig in digits]
-    fp_means = [np.mean(all_results[dig]["fp_rates"]) for dig in digits]
-    prec_means = [np.mean(all_results[dig]["precisions"]) for dig in digits]
-    ax.bar(x_pos - w2/2, fn_means, w2, label="False negative rate", color="C3", alpha=0.8)
-    ax.bar(x_pos + w2/2, fp_means, w2, label="False positive rate", color="C2", alpha=0.8)
-    for i, p in enumerate(prec_means):
-        ax.annotate(f"prec={p:.2f}", (x_pos[i], max(fn_means[i], fp_means[i]) + 0.005),
-                    ha="center", fontsize=9)
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels([f"Digit {dig}" for dig in digits])
-    ax.set_ylabel("Error rate")
-    ax.set_title("MNIST: filter error rates ($N_S=200$)")
-    ax.legend(); ax.grid(True, alpha=0.3, axis="y")
-    save_plot(fig, "mnist_error_rates")
+    _plot_bar_chart(all_results, pairs, pairs,
+                    "MNIST: filtering improves within-S digit classification ($N_S=200$)",
+                    "mnist_downstream")
+    _plot_error_rates(all_results, pairs, pairs,
+                      "MNIST: filter error rates ($N_S=200$)",
+                      "mnist_error_rates")
 
 
 def plot_mnist_vary_NS():
     d = load("mnist_vary_NS")
     xs = d["N_S_values"]
+    pair = d.get("pair", "digit 3")
 
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(xs, d["acc_s_mean"], yerr=d["acc_s_std"],
@@ -363,7 +348,7 @@ def plot_mnist_vary_NS():
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
     ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("MNIST (digit 3): accuracy vs $N_S$")
+    ax.set_title(f"MNIST ({pair}): accuracy vs $N_S$")
     ax.legend(); ax.grid(True, alpha=0.3)
     save_plot(fig, "mnist_vary_NS_downstream")
 
@@ -374,7 +359,7 @@ def plot_mnist_vary_NS():
                 fmt="s-", capsize=4, label="False positive rate", color="C2")
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$"); ax.set_ylabel("Error rate")
-    ax.set_title("MNIST (digit 3): filter errors vs $N_S$")
+    ax.set_title(f"MNIST ({pair}): filter errors vs $N_S$")
     ax.legend(); ax.grid(True, alpha=0.3)
     save_plot(fig, "mnist_vary_NS_errors")
 
@@ -382,28 +367,16 @@ def plot_mnist_vary_NS():
 def plot_covertype():
     d = load("covertype")
     all_results = d["results"]
-    classes = [str(c) for c in d["classes"]]
-    class_names = {4: "Cottonwood/Willow\n(p=0.005)", 5: "Aspen\n(p=0.016)"}
+    pairs = d.get("pairs", [str(c) for c in d.get("classes", [])])
+    display_names = {
+        "Ponderosa vs Douglas-fir": "Ponderosa vs\nDouglas-fir\n(p=0.09)",
+        "Cottonwood/Willow vs Aspen": "Cottonwood vs\nAspen\n(p=0.02)",
+    }
+    labels = [display_names.get(p, p) for p in pairs]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    x_pos = np.arange(len(classes))
-    width = 0.2
-    for i, (key, label, color) in enumerate([
-        ("acc_s_only", r"$S$ only ($N_S=200$)", "C3"),
-        ("acc_filtered", r"$S$ + filtered $B$", "C0"),
-        ("acc_random", r"$S$ + random $B$", "C1"),
-        ("acc_oracle", "Oracle (all labels)", "C2"),
-    ]):
-        means = [np.mean(all_results[c][key]) for c in classes]
-        stds = [np.std(all_results[c][key]) for c in classes]
-        ax.bar(x_pos + (i - 1.5)*width, means, width, yerr=stds, capsize=3,
-               label=label, color=color, alpha=0.8)
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels([class_names[int(c)] for c in classes])
-    ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("Covertype: rare class detection ($N_S=200$)")
-    ax.legend(fontsize=9); ax.grid(True, alpha=0.3, axis="y")
-    save_plot(fig, "covertype_downstream")
+    _plot_bar_chart(all_results, pairs, labels,
+                    "Covertype: filtering improves within-S classification ($N_S=200$)",
+                    "covertype_downstream")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────

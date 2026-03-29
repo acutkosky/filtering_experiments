@@ -101,50 +101,52 @@ uv run python run_realworld.py
 
 Runtime: ~2–3 minutes. Uses three datasets available through sklearn (no extra downloads needed).
 
-All downstream plots compare four baselines (measured by **balanced accuracy**, i.e., average of per-class recall):
-- **S only**: train on the N_S labeled target samples + random negatives
-- **S + filtered B**: augment S with filtered B samples (labeled as positive)
-- **S + random B**: augment S with random (unfiltered) B samples — a strawman showing naively adding unlabeled data hurts
-- **Oracle**: train on the full labeled training pool with balanced class weights
+In all real-world experiments, S = two related classes (A and B), O = everything else. The **downstream task** is to distinguish A from B within S. Points from O get random Bernoulli(0.5) labels, modeling a labeling oracle that works for S but produces garbage on off-distribution data. All downstream plots compare four baselines (measured by **balanced accuracy**, i.e., average of per-class recall):
+- **S only**: train on the N_S labeled A/B samples
+- **S + filtered B**: augment S with filtered B samples (using true A/B labels for S points, random labels for O false positives)
+- **S + random B**: augment S with random (unfiltered) B samples — mostly O with random labels, so it hurts
+- **Oracle**: train on all true A and B samples from the training pool
 
 ### 20 Newsgroups (`newsgroups_*`)
 
 **Dataset**: 18,846 text documents across 20 newsgroup topics. TF-IDF features (10,000 dimensions).
 
-**Setup**: One newsgroup topic is S. The full corpus is B (so p ~ 1/20 = 0.05). We use N_S = 200 labeled target documents and treat the remaining ~13K training documents as unlabeled B. The downstream task is binary classification: does a held-out document belong to the target topic?
+**Setup**: S = two related topics, B = full corpus (p ~ 0.10). N_S = 200 (100 per class). Downstream: distinguish the two topics within S.
 
-**Topics tested**: sci.space (distinctive), rec.autos (moderate), comp.graphics (hard — among several comp.* topics), rec.sport.hockey (sports).
+**Pairs tested**: baseball vs hockey (rec.sport.*), ibm.pc vs mac (comp.sys.*), space vs electronics (sci.*), guns vs mideast (talk.politics.*).
 
 **Plots**:
-- `newsgroups_downstream`: Bar chart comparing all four baselines across topics
-- `newsgroups_error_rates`: FP/FN rates and filter precision across topics
-- `newsgroups_vary_NS_downstream`: Balanced accuracy vs N_S for sci.space (S-only, filtered, random B)
+- `newsgroups_downstream`: Bar chart comparing all four baselines across topic pairs
+- `newsgroups_error_rates`: FP/FN rates and filter precision across pairs
+- `newsgroups_vary_NS_downstream`: Balanced accuracy vs N_S for baseball vs hockey
 - `newsgroups_vary_NS_errors`: Filter error rates vs N_S
 
-**Why this matters**: This is a high-dimensional (d=10,000) real-world setting where linear separation is natural. The paper's theory predicts dimension-free performance, and TF-IDF features should provide good margin separation for distinctive topics. The varying difficulty across topics illustrates how the effective margin affects filtering quality in practice.
+**Why this matters**: This is a high-dimensional (d=10,000) real-world setting where linear separation is natural. The paper's theory predicts dimension-free performance, and TF-IDF features should provide good margin separation for related topics. The varying difficulty across pairs illustrates how the effective margin affects filtering quality in practice.
 
 ### MNIST (`mnist_*`)
 
 **Dataset**: 70,000 handwritten digit images (28x28). Reduced to 50 PCA components for speed.
 
-**Setup**: One digit is S, the full dataset is B (p ~ 0.1). N_S = 200 labeled target digit samples. Downstream task: binary classification (target digit vs. all others).
+**Setup**: S = two similar digits, B = full dataset (p ~ 0.20). N_S = 200 (100 per digit). Downstream: distinguish the two digits within S.
 
-**Digits tested**: 3, 7, 1, 9 — varying in how visually distinctive they are.
+**Pairs tested**: 3 vs 8, 4 vs 9, 1 vs 7 — varying in visual similarity.
 
 **Plots**:
-- `mnist_downstream`: Bar chart comparing all four baselines across digits
-- `mnist_error_rates`: FP/FN rates per digit
-- `mnist_vary_NS_downstream`: Balanced accuracy vs N_S for digit 3
+- `mnist_downstream`: Bar chart comparing all four baselines across digit pairs
+- `mnist_error_rates`: FP/FN rates per pair
+- `mnist_vary_NS_downstream`: Balanced accuracy vs N_S for 3 vs 8
 - `mnist_vary_NS_errors`: Filter error rates vs N_S
 
 ### Covertype (`covertype_*`)
 
 **Dataset**: 581,012 forest cover type samples with 54 tabular features. No embedding needed.
 
-**Setup**: A rare forest cover type is S. We subsample 100K points for B. Class 4 (Cottonwood/Willow, p ~ 0.005) and Class 5 (Aspen, p ~ 0.016) are tested as targets. This models the "rare class detection" scenario with very low p.
+**Setup**: S = two forest types, subsample of 100K for B. N_S = 200 (100 per class). Downstream: distinguish the two forest types within S.
+
+**Pairs tested**: Ponderosa Pine vs Douglas-fir (p ~ 0.09), Cottonwood/Willow vs Aspen (p ~ 0.02).
 
 **Plots**:
-- `covertype_downstream`: Bar chart comparing all four baselines for the two rare classes
+- `covertype_downstream`: Bar chart comparing all four baselines for the two forest type pairs
 
 ## Output files
 
@@ -166,6 +168,6 @@ Each experiment saves a JSON file containing all parameters and results, enablin
 
 - **Downstream task (synthetic)**: The binary classification task (sign of x[1]) is deliberately simple, so that the benefit of more data is clear and measurable. Points from S have x[1] shifted positive (label_shift=1.0), making labels informative. Points from O get *random* Bernoulli(0.5) labels independent of x, modeling a labeling oracle that works for S but produces garbage for O. Including unfiltered B data actively hurts because ~99% of B has random labels that inject noise. With only N_S training points from S, the classifier has limited accuracy; adding filtered B data provides many more training points from (approximately) the S distribution, directly improving generalization. We compare three settings: S-only, S+filtered B, and S+unfiltered B (strawman).
 
-- **Downstream task (real-world)**: We use balanced accuracy (average of per-class recall) instead of raw accuracy, which gives a more meaningful metric when classes are highly imbalanced (e.g., Covertype with p=0.005). To prevent noisy filtered samples from overwhelming clean S data, we cap the number of filtered samples added to at most 5·N_S and balance the number of negative training samples accordingly.
+- **Downstream task (real-world)**: S = two related classes (A and B), downstream = distinguish A from B. Points from O get random Bernoulli(0.5) labels. Filtered B samples that are truly from S get their correct A/B labels; O false positives get random labels. We use balanced accuracy (average of per-class recall) and cap filtered samples at 5·N_S to prevent noise from overwhelming clean S data. The oracle uses all true A and B samples with correct labels.
 
-- **Balanced accuracy**: For imbalanced binary classification (e.g., rare class with p=0.005), raw accuracy is misleading — predicting all negative gives 99.5% accuracy. Balanced accuracy = (TPR + TNR)/2 treats both classes equally and gives 50% for the trivial all-negative classifier.
+- **Balanced accuracy**: For binary classification, balanced accuracy = (TPR + TNR)/2, which gives 50% for a trivial all-one or all-zero classifier. This is more meaningful than raw accuracy when classes are imbalanced.
