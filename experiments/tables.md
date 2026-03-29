@@ -24,7 +24,7 @@ TV distance is estimated in two ways:
 
 ## Experiment 1: Varying $N_S$
 
-**What this tests.** The paper's bound (Theorem 1) predicts $\text{TV} \sim O(R^2 / (\gamma^2 N_S))$ when $N_B$ is large. We fix $N_B = 500{,}000$, $d = 20$, $\gamma = 0.5$ and sweep $N_S$.
+**What this tests.** The paper's bound (Theorem 1) predicts $\text{TV} \sim O(R^2 / (\gamma^2 N_S))$ when $N_B$ is large. We fix $N_B = 500{,}000$, $d = 20$, $\gamma = 0.5$, $p = 0.01$, $R = 3$ and sweep $N_S$.
 
 **TV distance** (histogram-based):
 
@@ -56,7 +56,7 @@ With only $N_S = 50$ target samples, the $S$-only classifier achieves 83% accura
 
 ## Experiment 2: Varying $N_B$
 
-**What this tests.** The $1/(p \cdot N_B)$ term in the TV bound. We fix $N_S = 200$, $d = 50$, $\gamma = 0.5$. The higher dimension and smaller $N_S$ make the downstream task genuinely challenging for the $S$-only classifier, so the benefit of filtered augmentation is clearly visible.
+**What this tests.** The $1/(p \cdot N_B)$ term in the TV bound. We fix $N_S = 200$, $N_B$ varies, $d = 50$, $\gamma = 0.5$, $p = 0.01$, $R = 3$. The higher dimension and smaller $N_S$ make the downstream task genuinely challenging for the $S$-only classifier, so the benefit of filtered augmentation is clearly visible.
 
 **TV distance** (histogram-based):
 
@@ -88,7 +88,7 @@ The $S$-only baseline is flat at $\sim 86\%$ (limited by the small $N_S = 200$),
 
 ## Experiment 3: Varying Dimension $d$
 
-**What this tests.** The paper's key insight: the TV bound depends on $R^2/\gamma^2$ but **not** on the ambient dimension $d$. We fix $N_S = 1{,}000$, $N_B = 500{,}000$, $\gamma = 0.5$.
+**What this tests.** The paper's key insight: the TV bound depends on $R^2/\gamma^2$ but **not** on the ambient dimension $d$. We fix $N_S = 1{,}000$, $N_B = 500{,}000$, $\gamma = 0.5$, $p = 0.01$, $R = 3$.
 
 **TV bound** (FN + FP/$p$):
 
@@ -124,7 +124,7 @@ The TV bound stays at zero for $d \le 200$, confirming the dimension-free theore
 
 ## Experiment 4: Varying Margin $\gamma$
 
-**What this tests.** The $R^2/\gamma^2$ factor in the bound. We use $N_S = 30$ (deliberately small), $d = 10$, $N_B = 500{,}000$.
+**What this tests.** The $R^2/\gamma^2$ factor in the bound. We use $N_S = 30$ (deliberately small), $N_B = 500{,}000$, $d = 10$, $p = 0.01$, $R = 3$.
 
 **TV bound** (FN + FP/$p$):
 
@@ -160,7 +160,7 @@ At small $\gamma$ (hard separation), the filter makes more errors and the TV bou
 
 **What this tests.** Theorem 2 predicts additive degradation: $+\varepsilon_S$ from $S$-margin violations and $+\varepsilon_O/p$ from $O$-margin violations. With $p = 0.01$, even small $\varepsilon_O$ is amplified 100x.
 
-Fixed: $N_S = 1{,}000$, $N_B = 500{,}000$, $d = 10$, $\gamma = 0.5$.
+Fixed: $N_S = 1{,}000$, $N_B = 500{,}000$, $d = 10$, $\gamma = 0.5$, $p = 0.01$, $R = 3$.
 
 **Varying $\varepsilon_O$** (fraction of $O$ violating margin):
 
