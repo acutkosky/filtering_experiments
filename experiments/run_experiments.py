@@ -507,6 +507,83 @@ def experiment_vary_N_B(n_trials=10):
     save_plot(fig, "vary_NB_downstream")
 
 
+def experiment_vary_N_B_small_gamma(n_trials=10):
+    """TV distance and downstream accuracy vs N_B with small gamma."""
+    print("=" * 60)
+    print("Experiment: Varying N_B (small gamma)")
+    print("=" * 60)
+
+    d = 50
+    N_S = 200
+    p = 0.01
+    gamma = 0.1
+    R = 3.0
+
+    N_B_values = [10_000, 50_000, 100_000, 200_000, 500_000, 1_000_000, 2_000_000]
+    results = {k: [] for k in [
+        "tv_mean", "tv_std", "acc_s_mean", "acc_s_std",
+        "acc_f_mean", "acc_f_std", "acc_r_mean", "acc_r_std"
+    ]}
+
+    for N_B in N_B_values:
+        tvs, accs_s, accs_f, accs_r = [], [], [], []
+        for trial in range(n_trials):
+            rng = np.random.default_rng(2000 * trial + N_B + 7)
+            x_S, x_B, labels_B, y_S, y_B = generate_data(d, N_S, N_B, p, gamma, R, rng)
+            passed, clf = run_filter(x_S, x_B, gamma)
+            tv = estimate_tv_histogram(x_S, x_B, passed)
+            a_s, a_f, a_r = run_downstream_task(x_S, y_S, x_B, y_B, passed, d, gamma, R, rng)
+            tvs.append(tv)
+            accs_s.append(a_s)
+            accs_f.append(a_f)
+            accs_r.append(a_r)
+
+        results["tv_mean"].append(np.mean(tvs))
+        results["tv_std"].append(np.std(tvs))
+        results["acc_s_mean"].append(np.mean(accs_s))
+        results["acc_s_std"].append(np.std(accs_s))
+        results["acc_f_mean"].append(np.mean(accs_f))
+        results["acc_f_std"].append(np.std(accs_f))
+        results["acc_r_mean"].append(np.mean(accs_r))
+        results["acc_r_std"].append(np.std(accs_r))
+        print(f"  N_B={N_B:>9,}: TV={np.mean(tvs):.4f}, "
+              f"S-acc={np.mean(accs_s):.4f}, Filt-acc={np.mean(accs_f):.4f}, "
+              f"Unfilt-acc={np.mean(accs_r):.4f}")
+
+    data = {"N_B_values": N_B_values, "d": d, "N_S": N_S, "p": p,
+            "gamma": gamma, "R": R, "n_trials": n_trials, **results}
+    save_data("vary_NB_small_gamma", data)
+
+    # TV distance plot
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(N_B_values, results["tv_mean"], yerr=results["tv_std"],
+                fmt="o-", capsize=4, label="Estimated TV distance", color="C0")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
+    ax.set_ylabel("TV distance")
+    ax.set_title(rf"TV distance vs $N_B$ ($N_S={N_S}$, $\gamma={gamma}$, $p={p}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "vary_NB_small_gamma_tv")
+
+    # Downstream accuracy plot
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(N_B_values, results["acc_s_mean"], yerr=results["acc_s_std"],
+                fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
+    ax.errorbar(N_B_values, results["acc_f_mean"], yerr=results["acc_f_std"],
+                fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    ax.errorbar(N_B_values, results["acc_r_mean"], yerr=results["acc_r_std"],
+                fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
+    ax.set_xscale("log")
+    ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
+    ax.set_ylabel("Downstream classification accuracy")
+    ax.set_title(rf"Downstream accuracy vs $N_B$ ($N_S={N_S}$, $\gamma={gamma}$, $p={p}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "vary_NB_small_gamma_downstream")
+
+
 def experiment_vary_dimension(n_trials=10):
     """TV bound and downstream accuracy vs dimension d."""
     print("=" * 60)
@@ -843,6 +920,7 @@ if __name__ == "__main__":
     experiment_visualization()
     experiment_vary_N_S()
     experiment_vary_N_B()
+    experiment_vary_N_B_small_gamma()
     experiment_vary_dimension()
     experiment_vary_gamma()
     experiment_weak_separation()

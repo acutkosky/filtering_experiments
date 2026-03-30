@@ -83,6 +83,36 @@ With only $N_S = 50$ target samples, the $S$-only classifier achieves 86% accura
 
 The $S$-only baseline is flat at $\sim 87\%$ (limited by the small $N_S = 200$), while filtered accuracy climbs steadily from 89% to 99% as more $B$ data becomes available. The unfiltered baseline is *worse* than $S$-only at $\sim 84\%$: since $99\%$ of $B$ comes from $O$ with random labels, adding unfiltered data injects noise that actively degrades the classifier. This clearly demonstrates the paper's key practical insight: filtering is not just helpful but *essential* — naive data augmentation hurts.
 
+### Experiment 2b: Varying $N_B$ (small $\gamma$)
+
+**What this tests.** Same as Experiment 2 but with $\gamma = 0.1$ (vs $\gamma = 0.5$ above). The smaller margin makes the $R^2/(\gamma^2 \cdot p \cdot N_B)$ term larger, so the TV bound decreases more visibly as $N_B$ grows. Fixed: $N_S = 200$, $d = 50$, $p = 0.01$, $R = 3$.
+
+**TV distance** (histogram-based):
+
+| $N_B$ | TV (mean) | TV (std) |
+|------:|----------:|---------:|
+| 10,000 | 0.253 | 0.024 |
+| 50,000 | 0.160 | 0.018 |
+| 100,000 | 0.147 | 0.014 |
+| 200,000 | 0.133 | 0.016 |
+| 500,000 | 0.125 | 0.010 |
+| 1,000,000 | 0.114 | 0.015 |
+| 2,000,000 | 0.101 | 0.013 |
+
+**Downstream accuracy:**
+
+| $N_B$ | $S$-only acc | $S$+filtered acc | $S$+unfiltered acc |
+|------:|-------------:|-----------------:|-------------------:|
+| 10,000 | 0.864 | 0.879 | 0.860 |
+| 50,000 | 0.868 | 0.925 | 0.843 |
+| 100,000 | 0.867 | 0.942 | 0.846 |
+| 200,000 | 0.868 | 0.963 | 0.843 |
+| 500,000 | 0.879 | 0.980 | 0.841 |
+| 1,000,000 | 0.873 | 0.986 | 0.841 |
+| 2,000,000 | 0.862 | 0.988 | 0.840 |
+
+With smaller $\gamma = 0.1$, the TV distance is somewhat larger at small $N_B$ (0.25 vs 0.23) and the improvement with $N_B$ is more gradual, reflecting the harder separation. Despite this, the downstream accuracy pattern is similar: filtering climbs from 88% to 99%, demonstrating that the practical benefit scales with $N_B$ even when the margin is small.
+
 ---
 
 ## Experiment 3: Varying Dimension $d$

@@ -51,6 +51,12 @@ All experiments use p = 0.01 unless otherwise noted. Each data point is averaged
 
 **Downstream plot** (`vary_NB_downstream`): With N_S = 200 and d = 50, the S-only baseline is limited (~86%). As N_B increases, filtered augmentation adds more clean data, improving the downstream classifier from 89% to 99%, demonstrating substantial practical benefit.
 
+### Varying N_B with small gamma (`vary_NB_small_gamma_tv`, `vary_NB_small_gamma_downstream`)
+
+**Setup**: Same as above but with gamma = 0.1 (vs 0.5). Fixed N_S = 200, d = 50, R = 3.
+
+**What this tests**: With smaller gamma, the R^2/(gamma^2 * p * N_B) term is larger, so the TV bound decreases more visibly as N_B grows. The downstream accuracy pattern is similar but starts from a slightly higher TV.
+
 ### Varying dimension d (`vary_dimension_tv`, `vary_dimension_errors`, `vary_dimension_downstream`)
 
 **Setup**: d ranges from 2 to 1000. Fixed N_S = 1000, N_B = 500,000, gamma = 0.5, R = 3.

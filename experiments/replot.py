@@ -68,9 +68,10 @@ def plot_vary_NS():
     save_plot(fig, "vary_NS_downstream")
 
 
-def plot_vary_NB():
-    d = load("vary_NB")
+def _plot_vary_NB(data_name, plot_prefix):
+    d = load(data_name)
     xs = d["N_B_values"]
+    gamma = d.get("gamma", "")
 
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(xs, d["tv_mean"], yerr=d["tv_std"],
@@ -78,9 +79,9 @@ def plot_vary_NB():
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
     ax.set_ylabel("TV distance")
-    ax.set_title(rf"TV distance vs $N_B$ ($N_S={d['N_S']}$, $p={d['p']}$)")
+    ax.set_title(rf"TV distance vs $N_B$ ($N_S={d['N_S']}$, $\gamma={gamma}$, $p={d['p']}$)")
     ax.legend(); ax.grid(True, alpha=0.3)
-    save_plot(fig, "vary_NB_tv")
+    save_plot(fig, f"{plot_prefix}_tv")
 
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.errorbar(xs, d["acc_s_mean"], yerr=d["acc_s_std"],
@@ -93,9 +94,17 @@ def plot_vary_NB():
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_B$ (number of big distribution samples)")
     ax.set_ylabel("Downstream classification accuracy")
-    ax.set_title(rf"Downstream accuracy vs $N_B$ ($N_S={d['N_S']}$, $p={d['p']}$)")
+    ax.set_title(rf"Downstream accuracy vs $N_B$ ($N_S={d['N_S']}$, $\gamma={gamma}$, $p={d['p']}$)")
     ax.legend(); ax.grid(True, alpha=0.3)
-    save_plot(fig, "vary_NB_downstream")
+    save_plot(fig, f"{plot_prefix}_downstream")
+
+
+def plot_vary_NB():
+    _plot_vary_NB("vary_NB", "vary_NB")
+
+
+def plot_vary_NB_small_gamma():
+    _plot_vary_NB("vary_NB_small_gamma", "vary_NB_small_gamma")
 
 
 def plot_vary_dimension():
@@ -384,6 +393,7 @@ def plot_covertype():
 ALL_PLOTS = {
     "vary_NS": plot_vary_NS,
     "vary_NB": plot_vary_NB,
+    "vary_NB_small_gamma": plot_vary_NB_small_gamma,
     "vary_dimension": plot_vary_dimension,
     "vary_gamma": plot_vary_gamma,
     "weak_separation": plot_weak_separation,
