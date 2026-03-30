@@ -306,12 +306,12 @@ The filter is logistic regression with asymmetric class weights (same as other r
 
 To establish the ceiling for linear separation in each embedding space, we train logistic regression on fully labeled data (7,500 Wikipedia + 100,000 C4 for training, same for test). This tells us how well Wikipedia and C4 can be distinguished at all with a linear classifier in this embedding space.
 
-| Model | Accuracy | Recall (wiki TPR) | FP rate (C4 $\to$ wiki) | Precision |
-|-------|:--------:|:------------------:|:-----------------------:|:---------:|
-| MiniLM (384d) | 0.952 | 0.477 | 0.012 | 0.744 |
-| BGE (768d) | 0.966 | 0.637 | 0.009 | 0.836 |
+| Model | FN rate | FP rate | Precision | Recall |
+|-------|--------:|--------:|----------:|-------:|
+| MiniLM (384d) | 0.523 | 0.012 | 0.744 | 0.477 |
+| BGE (768d) | 0.364 | 0.009 | 0.836 | 0.637 |
 
-Even with full labels and balanced training, recall is limited (48--64%), confirming that Wikipedia and C4 are not perfectly linearly separable in these embedding spaces. The embeddings are optimized for semantic similarity, not source-quality discrimination. BGE is substantially better than MiniLM across all metrics. Overall accuracy is high (95--97%) because C4 is the majority class and the classifier correctly rejects most of it.
+Even with full labels, FN rates are high (36--52%), confirming that Wikipedia and C4 are not perfectly linearly separable in these embedding spaces. The embeddings are optimized for semantic similarity, not source-quality discrimination. BGE is substantially better than MiniLM across all metrics.
 
 ### Filter quality vs $N_S$
 
@@ -373,17 +373,17 @@ At $N_S = 5{,}000$ the filter substantially exceeds the oracle's recall, but at 
 
 **MiniLM (384d):**
 
-| Method | Recall | FP rate | Precision |
-|--------|-------:|--------:|----------:|
-| Oracle (7,500 wiki + 100K C4, labeled) | 0.477 | 0.012 | 0.744 |
-| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.839 | 0.083 | 0.093 |
+| Method | FN rate | FP rate | Precision | Recall |
+|--------|--------:|--------:|----------:|-------:|
+| Oracle (7,500 wiki + 100K C4, labeled) | 0.523 | 0.012 | 0.744 | 0.477 |
+| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.162 | 0.083 | 0.093 | 0.839 |
 
 **BGE (768d):**
 
-| Method | Recall | FP rate | Precision |
-|--------|-------:|--------:|----------:|
-| Oracle (7,500 wiki + 100K C4, labeled) | 0.637 | 0.009 | 0.836 |
-| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.876 | 0.042 | 0.174 |
+| Method | FN rate | FP rate | Precision | Recall |
+|--------|--------:|--------:|----------:|-------:|
+| Oracle (7,500 wiki + 100K C4, labeled) | 0.364 | 0.009 | 0.836 | 0.637 |
+| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.124 | 0.042 | 0.174 | 0.876 |
 
 The filter has *higher* recall than the oracle because the asymmetric class weighting pushes the decision boundary to accept more positives, at the cost of more false positives. The oracle optimizes balanced accuracy and is more conservative. On BGE, the filter achieves 88% recall with only 4.2% FP rate --- competitive with the oracle's 64% recall and 0.9% FP rate. These represent different operating points on the same ROC curve: the filter favors recall (find as much Wikipedia as possible), while the oracle favors precision (avoid accepting C4).
 
