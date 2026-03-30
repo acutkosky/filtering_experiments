@@ -219,6 +219,38 @@ The measured TV bound matches $\varepsilon_O / p$ almost exactly. Note that TV v
 
 The $\varepsilon_S$ degradation matches theory closely at small values but grows faster at larger values because the FN + FP/$p$ bound includes FP amplification from $S$-violating points that land on the $O$ side. The slope is still much less than $1/p = 100$ (the $\varepsilon_O$ slope), confirming the fundamental asymmetry. The unfiltered baseline stays flat at $\sim 84\%$ throughout. Note that at large $\varepsilon_S = 0.30$, filtered accuracy degrades to near the unfiltered level, as the margin violations make filtering ineffective.
 
+### Experiment 5b: Weak Separation (small $\gamma$)
+
+**What this tests.** Same as Experiment 5 but with smaller margin: $\gamma = 0.1$, $d = 50$, $p = 0.01$, $R = 3$. We increase $N_S$ and $N_B$ by 5x ($N_S = 1{,}000$, $N_B = 2{,}500{,}000$) to partially compensate for the 25x penalty from the smaller $\gamma$ in the $R^2/(\gamma^2 N_S)$ bound. TV is estimated via histogram on the separating coordinate (same method as Experiments 1--2).
+
+**Varying $\varepsilon_O$** (fraction of $O$ violating margin):
+
+| $\varepsilon_O$ | TV (mean) | TV (std) | $S$-only acc | Filtered acc | Unfiltered acc |
+|---------:|----------:|---------:|-------------:|-------------:|---------------:|
+| 0.000 | 0.053 | 0.011 | 0.867 | 0.993 | 0.842 |
+| 0.001 | 0.055 | 0.012 | 0.864 | 0.968 | 0.841 |
+| 0.002 | 0.053 | 0.010 | 0.863 | 0.952 | 0.841 |
+| 0.005 | 0.053 | 0.012 | 0.866 | 0.926 | 0.841 |
+| 0.010 | 0.053 | 0.009 | 0.866 | 0.914 | 0.843 |
+| 0.020 | 0.051 | 0.009 | 0.867 | 0.908 | 0.843 |
+| 0.050 | 0.061 | 0.013 | 0.867 | 0.908 | 0.845 |
+
+The histogram-based TV stays roughly constant at $\sim 0.05$ across all $\varepsilon_O$ values, because the histogram captures the overall distributional shape rather than the tail behavior where $O$-violating points slip through. However, the **downstream accuracy** clearly degrades from 99% to 91% as $\varepsilon_O$ increases, confirming that the margin violations do let through harmful $O$ samples even when the histogram TV doesn't visibly change. The unfiltered baseline remains flat at $\sim 84\%$.
+
+**Varying $\varepsilon_S$** (fraction of $S$ violating margin):
+
+| $\varepsilon_S$ | TV (mean) | TV (std) | $S$-only acc | Filtered acc | Unfiltered acc |
+|---------:|----------:|---------:|-------------:|-------------:|---------------:|
+| 0.00 | 0.056 | 0.012 | 0.867 | 0.993 | 0.840 |
+| 0.02 | 0.091 | 0.019 | 0.868 | 0.940 | 0.841 |
+| 0.05 | 0.395 | 0.065 | 0.866 | 0.895 | 0.842 |
+| 0.10 | 0.666 | 0.050 | 0.864 | 0.880 | 0.843 |
+| 0.15 | 0.754 | 0.040 | 0.870 | 0.858 | 0.840 |
+| 0.20 | 0.764 | 0.035 | 0.868 | 0.852 | 0.844 |
+| 0.30 | 0.722 | 0.033 | 0.863 | 0.844 | 0.841 |
+
+The $\varepsilon_S$ degradation is clearly visible in both TV and downstream accuracy. TV increases from 0.06 at $\varepsilon_S = 0$ to 0.76 at $\varepsilon_S = 0.20$, then plateaus (the histogram TV is bounded by 1). Downstream filtered accuracy degrades from 99% to 84%, eventually matching the unfiltered baseline. Compared to Experiment 5 (where $\gamma = 0.5$ and filtered accuracy stays at 99% up to $\varepsilon_S = 0.05$), the smaller margin makes the filter much more sensitive to $S$-side violations: at $\varepsilon_S = 0.05$, filtered accuracy is already down to 89% (vs 99% in Experiment 5).
+
 ---
 
 ## Real-world: 20 Newsgroups

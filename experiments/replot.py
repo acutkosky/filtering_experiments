@@ -235,6 +235,70 @@ def plot_weak_separation():
     save_plot(fig, "weak_sep_eps_S_downstream")
 
 
+def plot_weak_separation_small_gamma():
+    d = load("weak_separation_small_gamma")
+    p = d["p"]
+    gamma = d["gamma"]
+    N_S = d["N_S"]
+    dim = d["d"]
+    res_O = d["eps_O_results"]
+    res_S = d["eps_S_results"]
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(d["eps_O_values"], res_O["tv_mean"], yerr=res_O["tv_std"],
+                fmt="o-", capsize=4, color="C0", label="TV distance (histogram)")
+    baseline = res_O["tv_mean"][0]
+    ref = [baseline + e / p for e in d["eps_O_values"]]
+    ax.plot(d["eps_O_values"], ref, "--", color="C1", alpha=0.7,
+            label=r"baseline $+ \varepsilon_O / p$ (theory)")
+    ax.set_xlabel(r"$\varepsilon_O$ (fraction of $O$ violating margin)")
+    ax.set_ylabel("TV distance")
+    ax.set_title(rf"Weak separation: varying $\varepsilon_O$ ($\gamma={gamma}$, $d={dim}$, $N_S={N_S}$)")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_O_tv")
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(d["eps_S_values"], res_S["tv_mean"], yerr=res_S["tv_std"],
+                fmt="o-", capsize=4, color="C0", label="TV distance (histogram)")
+    baseline = res_S["tv_mean"][0]
+    ref = [baseline + e for e in d["eps_S_values"]]
+    ax.plot(d["eps_S_values"], ref, "--", color="C1", alpha=0.7,
+            label=r"baseline $+ \varepsilon_S$ (theory)")
+    ax.set_xlabel(r"$\varepsilon_S$ (fraction of $S$ violating margin)")
+    ax.set_ylabel("TV distance")
+    ax.set_title(rf"Weak separation: varying $\varepsilon_S$ ($\gamma={gamma}$, $d={dim}$, $N_S={N_S}$)")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_S_tv")
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(d["eps_O_values"], res_O["acc_s_mean"], yerr=res_O["acc_s_std"],
+                fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
+    ax.errorbar(d["eps_O_values"], res_O["acc_f_mean"], yerr=res_O["acc_f_std"],
+                fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in res_O:
+        ax.errorbar(d["eps_O_values"], res_O["acc_r_mean"], yerr=res_O["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
+    ax.set_xlabel(r"$\varepsilon_O$ (fraction of $O$ violating margin)")
+    ax.set_ylabel("Downstream classification accuracy")
+    ax.set_title(rf"Downstream accuracy vs $\varepsilon_O$ ($\gamma={gamma}$, $d={dim}$, $N_S={N_S}$)")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_O_downstream")
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(d["eps_S_values"], res_S["acc_s_mean"], yerr=res_S["acc_s_std"],
+                fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
+    ax.errorbar(d["eps_S_values"], res_S["acc_f_mean"], yerr=res_S["acc_f_std"],
+                fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    if "acc_r_mean" in res_S:
+        ax.errorbar(d["eps_S_values"], res_S["acc_r_mean"], yerr=res_S["acc_r_std"],
+                    fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
+    ax.set_xlabel(r"$\varepsilon_S$ (fraction of $S$ violating margin)")
+    ax.set_ylabel("Downstream classification accuracy")
+    ax.set_title(rf"Downstream accuracy vs $\varepsilon_S$ ($\gamma={gamma}$, $d={dim}$, $N_S={N_S}$)")
+    ax.legend(); ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_S_downstream")
+
+
 # ── Real-world plots ─────────────────────────────────────────────────────────
 
 def _plot_bar_chart(all_results, keys, labels, title, plot_name):
@@ -397,6 +461,7 @@ ALL_PLOTS = {
     "vary_dimension": plot_vary_dimension,
     "vary_gamma": plot_vary_gamma,
     "weak_separation": plot_weak_separation,
+    "weak_separation_small_gamma": plot_weak_separation_small_gamma,
     "newsgroups": plot_newsgroups,
     "newsgroups_vary_NS": plot_newsgroups_vary_NS,
     "mnist": plot_mnist,

@@ -912,6 +912,160 @@ def experiment_weak_separation(n_trials=15):
     save_plot(fig, "weak_sep_eps_S_downstream")
 
 
+def experiment_weak_separation_small_gamma(n_trials=15):
+    """Weak separation with small gamma, larger N_S and N_B."""
+    print("=" * 60)
+    print("Experiment: Weak separation (small gamma)")
+    print("=" * 60)
+
+    d = 50
+    N_S = 1000
+    N_B = 2_500_000
+    p = 0.01
+    gamma = 0.1
+    R = 3.0
+
+    # --- Vary eps_O ---
+    eps_O_values = [0.0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05]
+    res_O = {k: [] for k in [
+        "tv_mean", "tv_std", "fp_mean",
+        "acc_s_mean", "acc_s_std", "acc_f_mean", "acc_f_std",
+        "acc_r_mean", "acc_r_std"
+    ]}
+
+    for eps_O in eps_O_values:
+        tvs, fps, accs_s, accs_f, accs_r = [], [], [], [], []
+        for trial in range(n_trials):
+            rng = np.random.default_rng(7000 * trial + int(eps_O * 10000))
+            x_S, x_B, labels_B, y_S, y_B = generate_data(
+                d, N_S, N_B, p, gamma, R, rng, eps_S=0.0, eps_O=eps_O)
+            passed, clf = run_filter(x_S, x_B, gamma)
+            m = compute_metrics(x_S, x_B, passed, labels_B)
+            tv = estimate_tv_histogram(x_S, x_B, passed)
+            a_s, a_f, a_r = run_downstream_task(x_S, y_S, x_B, y_B, passed, d, gamma, R, rng)
+            tvs.append(tv)
+            fps.append(m["fp_rate"])
+            accs_s.append(a_s)
+            accs_f.append(a_f)
+            accs_r.append(a_r)
+
+        res_O["tv_mean"].append(np.mean(tvs))
+        res_O["tv_std"].append(np.std(tvs))
+        res_O["fp_mean"].append(np.mean(fps))
+        res_O["acc_s_mean"].append(np.mean(accs_s))
+        res_O["acc_s_std"].append(np.std(accs_s))
+        res_O["acc_f_mean"].append(np.mean(accs_f))
+        res_O["acc_f_std"].append(np.std(accs_f))
+        res_O["acc_r_mean"].append(np.mean(accs_r))
+        res_O["acc_r_std"].append(np.std(accs_r))
+        print(f"  eps_O={eps_O:.3f}: TV={np.mean(tvs):.4f}, "
+              f"Filt-acc={np.mean(accs_f):.4f}, Unfilt-acc={np.mean(accs_r):.4f}")
+
+    # --- Vary eps_S ---
+    eps_S_values = [0.0, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3]
+    res_S = {k: [] for k in [
+        "tv_mean", "tv_std", "fn_mean",
+        "acc_s_mean", "acc_s_std", "acc_f_mean", "acc_f_std",
+        "acc_r_mean", "acc_r_std"
+    ]}
+
+    for eps_S in eps_S_values:
+        tvs, fns, accs_s, accs_f, accs_r = [], [], [], [], []
+        for trial in range(n_trials):
+            rng = np.random.default_rng(8000 * trial + int(eps_S * 1000))
+            x_S, x_B, labels_B, y_S, y_B = generate_data(
+                d, N_S, N_B, p, gamma, R, rng, eps_S=eps_S, eps_O=0.0)
+            passed, clf = run_filter(x_S, x_B, gamma)
+            m = compute_metrics(x_S, x_B, passed, labels_B)
+            tv = estimate_tv_histogram(x_S, x_B, passed)
+            a_s, a_f, a_r = run_downstream_task(x_S, y_S, x_B, y_B, passed, d, gamma, R, rng)
+            tvs.append(tv)
+            fns.append(m["fn_rate"])
+            accs_s.append(a_s)
+            accs_f.append(a_f)
+            accs_r.append(a_r)
+
+        res_S["tv_mean"].append(np.mean(tvs))
+        res_S["tv_std"].append(np.std(tvs))
+        res_S["fn_mean"].append(np.mean(fns))
+        res_S["acc_s_mean"].append(np.mean(accs_s))
+        res_S["acc_s_std"].append(np.std(accs_s))
+        res_S["acc_f_mean"].append(np.mean(accs_f))
+        res_S["acc_f_std"].append(np.std(accs_f))
+        res_S["acc_r_mean"].append(np.mean(accs_r))
+        res_S["acc_r_std"].append(np.std(accs_r))
+        print(f"  eps_S={eps_S:.2f}: TV={np.mean(tvs):.4f}, "
+              f"Filt-acc={np.mean(accs_f):.4f}, Unfilt-acc={np.mean(accs_r):.4f}")
+
+    data = {
+        "eps_O_values": eps_O_values, "eps_S_values": eps_S_values,
+        "d": d, "N_S": N_S, "N_B": N_B, "p": p, "gamma": gamma, "R": R,
+        "n_trials": n_trials,
+        "eps_O_results": res_O, "eps_S_results": res_S,
+    }
+    save_data("weak_separation_small_gamma", data)
+
+    # TV vs eps_O
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(eps_O_values, res_O["tv_mean"], yerr=res_O["tv_std"],
+                fmt="o-", capsize=4, color="C0", label="TV distance (histogram)")
+    baseline = res_O["tv_mean"][0]
+    ref = [baseline + e / p for e in eps_O_values]
+    ax.plot(eps_O_values, ref, "--", color="C1", alpha=0.7,
+            label=r"baseline $+ \varepsilon_O / p$ (theory)")
+    ax.set_xlabel(r"$\varepsilon_O$ (fraction of $O$ violating margin)")
+    ax.set_ylabel("TV distance")
+    ax.set_title(rf"Weak separation: varying $\varepsilon_O$ ($\gamma={gamma}$, $d={d}$, $N_S={N_S}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_O_tv")
+
+    # TV vs eps_S
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(eps_S_values, res_S["tv_mean"], yerr=res_S["tv_std"],
+                fmt="o-", capsize=4, color="C0", label="TV distance (histogram)")
+    baseline = res_S["tv_mean"][0]
+    ref = [baseline + e for e in eps_S_values]
+    ax.plot(eps_S_values, ref, "--", color="C1", alpha=0.7,
+            label=r"baseline $+ \varepsilon_S$ (theory)")
+    ax.set_xlabel(r"$\varepsilon_S$ (fraction of $S$ violating margin)")
+    ax.set_ylabel("TV distance")
+    ax.set_title(rf"Weak separation: varying $\varepsilon_S$ ($\gamma={gamma}$, $d={d}$, $N_S={N_S}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_S_tv")
+
+    # Downstream accuracy vs eps_O
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(eps_O_values, res_O["acc_s_mean"], yerr=res_O["acc_s_std"],
+                fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
+    ax.errorbar(eps_O_values, res_O["acc_f_mean"], yerr=res_O["acc_f_std"],
+                fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    ax.errorbar(eps_O_values, res_O["acc_r_mean"], yerr=res_O["acc_r_std"],
+                fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
+    ax.set_xlabel(r"$\varepsilon_O$ (fraction of $O$ violating margin)")
+    ax.set_ylabel("Downstream classification accuracy")
+    ax.set_title(rf"Downstream accuracy vs $\varepsilon_O$ ($\gamma={gamma}$, $d={d}$, $N_S={N_S}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_O_downstream")
+
+    # Downstream accuracy vs eps_S
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.errorbar(eps_S_values, res_S["acc_s_mean"], yerr=res_S["acc_s_std"],
+                fmt="s-", capsize=4, label=r"$S$ samples only", color="C3")
+    ax.errorbar(eps_S_values, res_S["acc_f_mean"], yerr=res_S["acc_f_std"],
+                fmt="o-", capsize=4, label=r"$S$ + filtered $B$", color="C0")
+    ax.errorbar(eps_S_values, res_S["acc_r_mean"], yerr=res_S["acc_r_std"],
+                fmt="D--", capsize=4, label=r"$S$ + unfiltered $B$", color="C2")
+    ax.set_xlabel(r"$\varepsilon_S$ (fraction of $S$ violating margin)")
+    ax.set_ylabel("Downstream classification accuracy")
+    ax.set_title(rf"Downstream accuracy vs $\varepsilon_S$ ($\gamma={gamma}$, $d={d}$, $N_S={N_S}$)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    save_plot(fig, "weak_sep_small_gamma_eps_S_downstream")
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -924,6 +1078,7 @@ if __name__ == "__main__":
     experiment_vary_dimension()
     experiment_vary_gamma()
     experiment_weak_separation()
+    experiment_weak_separation_small_gamma()
 
     elapsed = time.time() - t0
     print(f"\nAll experiments completed in {elapsed:.1f}s")
