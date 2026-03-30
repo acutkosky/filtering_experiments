@@ -193,70 +193,70 @@ The $\varepsilon_S$ degradation matches theory closely at small values but grows
 
 ## Real-world: 20 Newsgroups
 
-**Setup.** 18,846 text documents, TF-IDF features (10,000 dimensions). $S$ = two related newsgroup topics, $B$ = full corpus ($p \approx 0.10$). $N_S = 200$ (100 per class). **Downstream task**: distinguish the two topics within $S$. Points from $O$ get random labels. Balanced accuracy over 10 trials.
+**Setup.** 18,846 text documents, TF-IDF features (10,000 dimensions). $S$ = two related newsgroup topics, $B$ = full corpus ($p \approx 0.10$). $N_S = 200$ (100 per class). **Downstream task**: distinguish the two topics within $S$. Points from $O$ are labeled by a confounding classifier trained on a different topic pair, so their labels carry real but *wrong* signal that actively misleads the A-vs-B classifier. Balanced accuracy over 10 trials.
 
 | Topic pair | $S$-only | Filtered | Random $B$ | Oracle | FN rate | FP rate | Precision |
 |------------|:--------:|:--------:|:----------:|:------:|--------:|--------:|----------:|
-| baseball vs hockey | 0.845 | **0.854** | 0.836 | 0.906 | 0.805 | 0.009 | 0.83 |
-| ibm.pc vs mac | 0.786 | **0.790** | 0.771 | 0.856 | 0.813 | 0.002 | 0.93 |
-| space vs electronics | 0.852 | **0.856** | 0.837 | 0.907 | 0.832 | 0.001 | 0.95 |
-| guns vs mideast | 0.872 | **0.877** | 0.861 | 0.920 | 0.811 | 0.001 | 0.94 |
+| christianity vs politics.misc | 0.880 | **0.895** | 0.790 | 0.933 | 0.815 | 0.001 | 0.94 |
+| sci.crypt vs sci.electronics | 0.851 | **0.867** | 0.819 | 0.908 | 0.831 | 0.001 | 0.97 |
+| rec.autos vs rec.motorcycles | 0.798 | 0.785 | 0.756 | 0.852 | 0.821 | 0.007 | 0.85 |
+| ibm.pc vs mac | 0.770 | **0.781** | 0.736 | 0.856 | 0.807 | 0.002 | 0.91 |
 
-Filtering consistently improves over $S$-only across all topic pairs (0.5--1% balanced accuracy gain), and always outperforms the random $B$ baseline. The improvements are modest because $N_S = 200$ already provides reasonable accuracy for the within-$S$ task. High FN rates (~80%) mean the filter is conservative; high precision (83--95%) confirms that accepted samples are mostly from $S$.
+Filtering improves over $S$-only for 3 out of 4 topic pairs (1--2 percentage points), closing 15--30% of the gap to the oracle. The confounding labels make random $B$ clearly harmful: 4--9 percentage points below $S$-only. The one pair where filtering slightly hurts (rec.autos vs motorcycles) has the lowest precision (85%), confirming that filter quality is the bottleneck. High FN rates (~80%) mean the filter is conservative; high precision (85--97%) confirms that accepted samples are mostly from $S$.
 
 ---
 
 ## Real-world: MNIST
 
-**Setup.** 70,000 digit images, PCA to 50 dimensions. $S$ = two similar digits, $B$ = full dataset ($p \approx 0.20$). $N_S = 200$ (100 per digit). **Downstream task**: distinguish the two digits within $S$. Points from $O$ get random labels. Balanced accuracy over 10 trials.
+**Setup.** 70,000 digit images, PCA to 50 dimensions. $S$ = two similar digits, $B$ = full dataset ($p \approx 0.20$). $N_S = 200$ (100 per digit). **Downstream task**: distinguish the two digits within $S$. Points from $O$ are labeled by a confounding classifier trained on a different digit pair. Balanced accuracy over 10 trials.
 
 | Digit pair | $S$-only | Filtered | Random $B$ | Oracle | FN rate | FP rate | Precision |
 |:----------:|:--------:|:--------:|:----------:|:------:|--------:|--------:|----------:|
-| 3 vs 8 | 0.939 | **0.942** | 0.920 | 0.963 | 0.237 | 0.094 | 0.67 |
-| 4 vs 9 | 0.937 | **0.937** | 0.886 | 0.964 | 0.108 | 0.037 | 0.86 |
-| 1 vs 7 | 0.988 | 0.979 | 0.968 | 0.995 | 0.116 | 0.036 | 0.87 |
+| 7 vs 9 | 0.927 | **0.932** | 0.869 | 0.955 | 0.124 | 0.041 | 0.84 |
+| 3 vs 5 | 0.924 | 0.905 | 0.780 | 0.949 | 0.210 | 0.065 | 0.75 |
+| 4 vs 9 | 0.939 | 0.913 | 0.751 | 0.964 | 0.122 | 0.034 | 0.86 |
 
-Filtering helps most when the within-$S$ task is hard: 3 vs 8 gains 0.3% from filtering, while random $B$ drops 2% below $S$-only. For the easy 1 vs 7 pair ($S$-only already 98.8%), additional data adds slight noise. Precision is 67--87%, with harder-to-filter pairs (3 vs 8) having lower precision.
+Confounding labels make random $B$ dramatically harmful: 6--19 percentage points below $S$-only. Filtering helps for 7 vs 9 (highest precision at 84%), closing 17% of the oracle gap. For 3 vs 5 and 4 vs 9, the lower precision (75--86%) means enough confounding $O$ false positives slip through to slightly hurt. The pattern is clear: filtering helps when precision is high enough that the benefit of extra clean $S$ data outweighs the noise from confounding false positives.
 
 ---
 
 ## Real-world: Covertype
 
-**Setup.** 581,012 forest cover type samples, 54 tabular features. $S$ = two forest types, subsample of 100K for $B$. $N_S = 200$ (100 per class). **Downstream task**: distinguish the two forest types within $S$. Points from $O$ get random labels. Balanced accuracy over 10 trials.
+**Setup.** 581,012 forest cover type samples, 54 tabular features. $S$ = two forest types, subsample of 100K for $B$. $N_S = 200$ (100 per class). **Downstream task**: distinguish the two forest types within $S$. Points from $O$ are labeled by a confounding classifier trained on a different forest type pair. Balanced accuracy over 10 trials.
 
 | Forest type pair | $p$ | $S$-only | Filtered | Random $B$ | Oracle | FN rate | FP rate | Precision |
 |:----------------:|----:|:--------:|:--------:|:----------:|:------:|--------:|--------:|----------:|
-| Ponderosa vs Douglas-fir | 0.09 | 0.684 | **0.695** | 0.648 | 0.717 | 0.041 | 0.049 | 0.66 |
-| Cottonwood vs Aspen | 0.02 | 1.000 | 0.921 | 0.941 | 1.000 | 0.257 | 0.159 | 0.09 |
+| Spruce/Fir vs Lodgepole Pine | 0.85 | 0.729 | **0.755** | 0.734 | 0.772 | 0.424 | 0.141 | 0.96 |
+| Ponderosa vs Douglas-fir | 0.09 | 0.686 | 0.680 | 0.603 | 0.717 | 0.040 | 0.050 | 0.66 |
 
-Ponderosa vs Douglas-fir shows the expected pattern: filtering improves by 1.1% over $S$-only and 4.7% over random $B$. Cottonwood vs Aspen is a degenerate case: the two classes are perfectly separable with 200 samples ($S$-only = 100%), so additional filtered data (precision only 9%) adds noise.
+Spruce/Fir vs Lodgepole Pine is the hardest downstream task (oracle only 77%) and filtering helps by 2.6 percentage points, closing 60% of the oracle gap. This pair has very high $p = 0.85$, so the filter's precision (96%) is high. Ponderosa vs Douglas-fir has much lower $p = 0.09$ and lower precision (66%); the confounding labels still make random $B$ dramatically worse (8 points below $S$-only).
 
 ---
 
 ## Real-world: Varying $N_S$
 
-### 20 Newsgroups (baseball vs hockey)
+### 20 Newsgroups (sci.crypt vs sci.electronics)
 
 | $N_S$ | $S$-only | Filtered | Random $B$ | FN rate | FP rate |
 |------:|:--------:|:--------:|:----------:|--------:|--------:|
-| 20 | 0.671 | 0.679 | 0.663 | 0.969 | 0.011 |
-| 50 | 0.734 | 0.755 | 0.720 | 0.941 | 0.009 |
-| 100 | 0.796 | 0.809 | 0.786 | 0.896 | 0.006 |
-| 200 | 0.837 | 0.853 | 0.832 | 0.803 | 0.003 |
-| 400 | 0.872 | 0.884 | 0.862 | 0.613 | 0.004 |
+| 20 | 0.722 | 0.646 | 0.677 | 0.970 | 0.015 |
+| 50 | 0.798 | 0.782 | 0.756 | 0.955 | 0.003 |
+| 100 | 0.821 | 0.817 | 0.793 | 0.909 | 0.004 |
+| 200 | 0.847 | **0.854** | 0.809 | 0.818 | 0.005 |
+| 400 | 0.874 | **0.887** | 0.829 | 0.654 | 0.002 |
 
-Filtering consistently improves over $S$-only across all $N_S$ values, with the gap widening as the filter learns a better decision boundary. Random $B$ always hurts.
+At small $N_S$ (20--100), the filter's high FN rate (~91--97%) means very few $B$ samples pass, limiting the benefit of filtering. At $N_S \ge 200$, filtered surpasses $S$-only as the filter learns a better decision boundary (FN drops to 65--82%). Confounding labels make random $B$ consistently worse than $S$-only, with gaps of 3--5 percentage points.
 
-### MNIST (3 vs 8)
+### MNIST (7 vs 9)
 
 | $N_S$ | $S$-only | Filtered | Random $B$ | FN rate | FP rate |
 |------:|:--------:|:--------:|:----------:|--------:|--------:|
-| 10 | 0.830 | **0.871** | 0.862 | 0.942 | 0.106 |
-| 20 | 0.860 | **0.882** | 0.847 | 0.750 | 0.094 |
-| 50 | 0.915 | **0.927** | 0.908 | 0.442 | 0.089 |
-| 100 | 0.930 | **0.932** | 0.913 | 0.311 | 0.088 |
-| 200 | 0.942 | **0.943** | 0.923 | 0.243 | 0.083 |
-| 500 | 0.948 | **0.949** | 0.933 | 0.201 | 0.077 |
-| 1,000 | 0.953 | **0.950** | 0.937 | 0.189 | 0.072 |
+| 10 | 0.802 | **0.884** | 0.784 | 0.910 | 0.007 |
+| 20 | 0.870 | **0.906** | 0.829 | 0.685 | 0.026 |
+| 50 | 0.890 | **0.918** | 0.839 | 0.364 | 0.037 |
+| 100 | 0.917 | **0.925** | 0.855 | 0.198 | 0.038 |
+| 200 | 0.932 | **0.932** | 0.868 | 0.122 | 0.039 |
+| 500 | 0.944 | 0.937 | 0.873 | 0.092 | 0.038 |
+| 1,000 | 0.949 | 0.938 | 0.872 | 0.078 | 0.038 |
 
-Filtered beats $S$-only for $N_S \le 500$, with the largest gains at small $N_S$ (4% at $N_S = 10$). Random $B$ consistently hurts due to O samples with random labels.
+Filtering provides substantial gains at small $N_S$: +8.3 percentage points at $N_S = 10$, +3.6 at $N_S = 20$, and +2.8 at $N_S = 50$. The gains diminish as $N_S$ grows and $S$ alone becomes sufficient. Confounding labels (from a 3 vs 8 classifier applied to $O$) make random $B$ consistently harmful: 2--7 percentage points below $S$-only. The crossover at $N_S \approx 500$ reflects the point where the small amount of confounding noise in filtered $B$ (~4% FP) outweighs the benefit of additional data.

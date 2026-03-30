@@ -58,8 +58,13 @@ def save_plot(fig, name):
     print(f"  -> {name}.pdf")
 
 
-def run_filter(x_S, x_B, C=10.0, weight_scale=1.0):
-    """Run the filter. Returns boolean mask of B samples that pass."""
+def run_filter(x_S, x_B, C=10.0, weight_scale=1.0, threshold=0.0):
+    """Run the filter. Returns boolean mask of B samples that pass.
+
+    Args:
+        threshold: decision function threshold. Higher = more selective
+                   (fewer FP, more FN, higher precision).
+    """
     N_S = len(x_S)
     N_B = len(x_B)
 
@@ -75,7 +80,7 @@ def run_filter(x_S, x_B, C=10.0, weight_scale=1.0):
     clf.fit(X_train, y_train)
 
     scores_B = clf.decision_function(x_B)
-    passed = scores_B >= 0
+    passed = scores_B >= threshold
     return passed, clf
 
 
@@ -153,16 +158,33 @@ def compute_metrics(passed, labels_B):
             "n_passed": int(passed.sum()), "pass_rate": float(passed.mean())}
 
 
-def make_downstream_labels(y_pool, class_a, class_b, rng):
+def make_downstream_labels(y_pool, X_pool, class_a, class_b,
+                           confound_a, confound_b):
     """Create downstream labels for all samples in a pool.
 
-    class A → 1, class B → 0, O (everything else) → random Bernoulli(0.5).
+    class A → 1, class B → 0.
+    O (everything else) → labels from a confounding classifier trained on
+    (confound_a vs confound_b). This models a labeling oracle trained for
+    a different task: O labels carry real signal about the confounding
+    classification, which actively misleads the A-vs-B classifier.
     Returns labels array and boolean mask of which samples are in S = A ∪ B.
     """
     is_a = (y_pool == class_a)
     is_b = (y_pool == class_b)
     is_S = is_a | is_b
-    y_ds = rng.integers(0, 2, len(y_pool))  # random for O
+
+    # Train confounding classifier on a different pair of classes
+    is_c = (y_pool == confound_a)
+    is_d = (y_pool == confound_b)
+    X_cd = np.vstack([X_pool[is_c], X_pool[is_d]])
+    y_cd = np.array([1]*is_c.sum() + [0]*is_d.sum())
+    clf_confound = LogisticRegression(max_iter=1000, C=1.0)
+    clf_confound.fit(X_cd, y_cd)
+
+    # O samples get labels from the confounding classifier
+    y_ds = clf_confound.predict(X_pool).astype(int)
+
+    # Override with true labels for A and B
     y_ds[is_a] = 1
     y_ds[is_b] = 0
     return y_ds, is_S
@@ -243,20 +265,23 @@ def experiment_20newsgroups(n_trials=10):
     X_all = vectorizer.fit_transform(data.data).toarray()
     y_all = data.target
 
-    # Pairs of related topics: (class_a, class_b, short_name)
+    # Pairs of related topics: (class_a, class_b, confound_a, confound_b, short_name)
+    # Confounding pairs are from different topic families so their signal
+    # actively misleads the A-vs-B classifier.
     topic_pairs = [
-        (9, 10, "baseball vs hockey"),     # rec.sport.*
-        (3, 4, "ibm.pc vs mac"),           # comp.sys.*
-        (14, 12, "space vs electronics"),   # sci.*
-        (16, 17, "guns vs mideast"),        # talk.politics.*
+        (15, 18, 9, 10, "christianity vs politics.misc"),  # confound: baseball vs hockey
+        (11, 12, 7, 8, "sci.crypt vs sci.electronics"),    # confound: rec.autos vs motorcycles
+        (7, 8, 3, 4, "rec.autos vs rec.motorcycles"),      # confound: ibm.pc vs mac
+        (3, 4, 16, 17, "ibm.pc vs mac"),                   # confound: guns vs mideast
     ]
 
     all_results = {}
 
-    for class_a, class_b, pair_name in topic_pairs:
+    for class_a, class_b, confound_a, confound_b, pair_name in topic_pairs:
         name_a = data.target_names[class_a]
         name_b = data.target_names[class_b]
         print(f"\n  Pair: {name_a} vs {name_b}")
+        print(f"    Confounding: {data.target_names[confound_a]} vs {data.target_names[confound_b]}")
 
         is_S = (y_all == class_a) | (y_all == class_b)
         p_true = is_S.mean()
@@ -276,9 +301,10 @@ def experiment_20newsgroups(n_trials=10):
             X_train_pool = X_all[train_idx]
             y_train_pool = y_all[train_idx]
 
-            # Downstream labels: A→1, B→0, O→random
+            # Downstream labels: A→1, B→0, O→confounding classifier
             y_ds_train, is_S_train = make_downstream_labels(
-                y_train_pool, class_a, class_b, rng)
+                y_train_pool, X_train_pool, class_a, class_b,
+                confound_a, confound_b)
 
             # Test set: only A and B samples
             test_is_S = (y_all[test_idx] == class_a) | (y_all[test_idx] == class_b)
@@ -336,7 +362,7 @@ def experiment_20newsgroups(n_trials=10):
             k: [float(x) for x in v] for k, v in results.items()
         }
 
-    pair_names = [p[2] for p in topic_pairs]
+    pair_names = [p[4] for p in topic_pairs]
     save_data("newsgroups", {"results": all_results,
                               "pairs": pair_names,
                               "n_trials": n_trials, "N_S": 200})
@@ -352,9 +378,9 @@ def experiment_20newsgroups(n_trials=10):
 # ── 20 Newsgroups: vary N_S ─────────────────────────────────────────────────
 
 def experiment_newsgroups_vary_NS(n_trials=10):
-    """Vary N_S on 20 Newsgroups (baseball vs hockey)."""
+    """Vary N_S on 20 Newsgroups (sci.crypt vs sci.electronics)."""
     print("=" * 60)
-    print("Real-world: 20 Newsgroups — varying N_S (baseball vs hockey)")
+    print("Real-world: 20 Newsgroups — varying N_S (sci.crypt vs sci.electronics)")
     print("=" * 60)
 
     from sklearn.datasets import fetch_20newsgroups
@@ -365,7 +391,8 @@ def experiment_newsgroups_vary_NS(n_trials=10):
     X_all = vectorizer.fit_transform(data.data).toarray()
     y_all = data.target
 
-    class_a, class_b = 9, 10  # baseball vs hockey
+    class_a, class_b = 11, 12  # sci.crypt vs sci.electronics
+    confound_a, confound_b = 7, 8  # rec.autos vs rec.motorcycles
 
     N_S_values = [20, 50, 100, 200, 400]
     results = {k: [] for k in [
@@ -388,7 +415,8 @@ def experiment_newsgroups_vary_NS(n_trials=10):
             y_train_pool = y_all[train_idx]
 
             y_ds_train, is_S_train = make_downstream_labels(
-                y_train_pool, class_a, class_b, rng)
+                y_train_pool, X_train_pool, class_a, class_b,
+                confound_a, confound_b)
 
             test_is_S = (y_all[test_idx] == class_a) | (y_all[test_idx] == class_b)
             X_test = X_all[test_idx][test_is_S]
@@ -441,7 +469,7 @@ def experiment_newsgroups_vary_NS(n_trials=10):
               f"S-acc={np.mean(accs_s):.4f}, Filt-acc={np.mean(accs_f):.4f}")
 
     data_out = {"N_S_values": N_S_values,
-                "pair": "baseball vs hockey",
+                "pair": "sci.crypt vs sci.electronics",
                 "n_trials": n_trials, **results}
     save_data("newsgroups_vary_NS", data_out)
 
@@ -455,7 +483,7 @@ def experiment_newsgroups_vary_NS(n_trials=10):
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
     ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("20 Newsgroups (baseball vs hockey): accuracy vs $N_S$")
+    ax.set_title("20 Newsgroups (sci.crypt vs sci.electronics): accuracy vs $N_S$")
     ax.legend()
     ax.grid(True, alpha=0.3)
     save_plot(fig, "newsgroups_vary_NS_downstream")
@@ -468,7 +496,7 @@ def experiment_newsgroups_vary_NS(n_trials=10):
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$")
     ax.set_ylabel("Error rate")
-    ax.set_title("20 Newsgroups (baseball vs hockey): filter errors vs $N_S$")
+    ax.set_title("20 Newsgroups (sci.crypt vs sci.electronics): filter errors vs $N_S$")
     ax.legend()
     ax.grid(True, alpha=0.3)
     save_plot(fig, "newsgroups_vary_NS_errors")
@@ -496,17 +524,17 @@ def experiment_mnist(n_trials=10):
     pca = PCA(n_components=50, random_state=0)
     X_all = pca.fit_transform(X_raw)
 
-    # Pairs of similar digits
+    # Pairs of similar digits: (digit_a, digit_b, confound_a, confound_b, name)
     digit_pairs = [
-        (3, 8, "3 vs 8"),
-        (4, 9, "4 vs 9"),
-        (1, 7, "1 vs 7"),
+        (7, 9, 3, 8, "7 vs 9"),   # confound with 3 vs 8
+        (3, 5, 4, 9, "3 vs 5"),   # confound with 4 vs 9
+        (4, 9, 3, 8, "4 vs 9"),   # confound with 3 vs 8
     ]
 
     all_results = {}
 
-    for digit_a, digit_b, pair_name in digit_pairs:
-        print(f"\n  Pair: {pair_name}")
+    for digit_a, digit_b, confound_a, confound_b, pair_name in digit_pairs:
+        print(f"\n  Pair: {pair_name} (confound: {confound_a} vs {confound_b})")
 
         is_S = (y_raw == digit_a) | (y_raw == digit_b)
         p_true = is_S.mean()
@@ -527,7 +555,8 @@ def experiment_mnist(n_trials=10):
             y_train = y_raw[train_idx]
 
             y_ds_train, is_S_train = make_downstream_labels(
-                y_train, digit_a, digit_b, rng)
+                y_train, X_train, digit_a, digit_b,
+                confound_a, confound_b)
 
             test_is_S = (y_raw[test_idx] == digit_a) | (y_raw[test_idx] == digit_b)
             X_test = X_all[test_idx][test_is_S]
@@ -577,7 +606,7 @@ def experiment_mnist(n_trials=10):
             k: [float(x) for x in v] for k, v in results.items()
         }
 
-    pair_names = [p[2] for p in digit_pairs]
+    pair_names = [p[4] for p in digit_pairs]
     save_data("mnist", {"results": all_results,
                          "pairs": pair_names, "n_trials": n_trials,
                          "N_S": 200, "pca_dims": 50})
@@ -593,9 +622,9 @@ def experiment_mnist(n_trials=10):
 # ── MNIST: vary N_S ─────────────────────────────────────────────────────────
 
 def experiment_mnist_vary_NS(n_trials=10):
-    """Vary N_S on MNIST (3 vs 8)."""
+    """Vary N_S on MNIST (7 vs 9)."""
     print("=" * 60)
-    print("Real-world: MNIST — varying N_S (3 vs 8)")
+    print("Real-world: MNIST — varying N_S (7 vs 9)")
     print("=" * 60)
 
     from sklearn.datasets import fetch_openml
@@ -609,7 +638,8 @@ def experiment_mnist_vary_NS(n_trials=10):
     pca = PCA(n_components=50, random_state=0)
     X_all = pca.fit_transform(X_raw)
 
-    digit_a, digit_b = 3, 8
+    digit_a, digit_b = 7, 9
+    confound_a, confound_b = 3, 8  # confounding pair
     N_S_values = [10, 20, 50, 100, 200, 500, 1000]
     results = {k: [] for k in [
         "fn_mean", "fn_std", "fp_mean", "fp_std",
@@ -631,7 +661,8 @@ def experiment_mnist_vary_NS(n_trials=10):
             y_train = y_raw[train_idx]
 
             y_ds_train, is_S_train = make_downstream_labels(
-                y_train, digit_a, digit_b, rng)
+                y_train, X_train, digit_a, digit_b,
+                confound_a, confound_b)
 
             test_is_S = (y_raw[test_idx] == digit_a) | (y_raw[test_idx] == digit_b)
             X_test = X_all[test_idx][test_is_S]
@@ -682,7 +713,7 @@ def experiment_mnist_vary_NS(n_trials=10):
               f"S-acc={np.mean(accs_s):.4f}, Filt-acc={np.mean(accs_f):.4f}")
 
     data_out = {"N_S_values": N_S_values,
-                "pair": "3 vs 8",
+                "pair": "7 vs 9",
                 "n_trials": n_trials, **results}
     save_data("mnist_vary_NS", data_out)
 
@@ -696,7 +727,7 @@ def experiment_mnist_vary_NS(n_trials=10):
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$ (number of target samples)")
     ax.set_ylabel("Downstream balanced accuracy")
-    ax.set_title("MNIST (3 vs 8): accuracy vs $N_S$")
+    ax.set_title("MNIST (7 vs 9): accuracy vs $N_S$")
     ax.legend()
     ax.grid(True, alpha=0.3)
     save_plot(fig, "mnist_vary_NS_downstream")
@@ -709,7 +740,7 @@ def experiment_mnist_vary_NS(n_trials=10):
     ax.set_xscale("log")
     ax.set_xlabel(r"$N_S$")
     ax.set_ylabel("Error rate")
-    ax.set_title("MNIST (3 vs 8): filter errors vs $N_S$")
+    ax.set_title("MNIST (7 vs 9): filter errors vs $N_S$")
     ax.legend()
     ax.grid(True, alpha=0.3)
     save_plot(fig, "mnist_vary_NS_errors")
@@ -735,16 +766,16 @@ def experiment_covertype(n_trials=10):
     scaler = StandardScaler()
     X_all = scaler.fit_transform(X_raw)
 
-    # Pairs of forest types
+    # Pairs of forest types: (class_a, class_b, confound_a, confound_b, name)
     class_pairs = [
-        (3, 6, "Ponderosa vs Douglas-fir"),       # p ≈ 0.09
-        (4, 5, "Cottonwood/Willow vs Aspen"),      # p ≈ 0.02
+        (1, 2, 3, 6, "Spruce/Fir vs Lodgepole Pine"),    # confound: Ponderosa vs Douglas-fir
+        (3, 6, 1, 2, "Ponderosa vs Douglas-fir"),         # confound: Spruce/Fir vs Lodgepole Pine
     ]
 
     N_B_use = 100_000
     all_results = {}
 
-    for class_a, class_b, pair_name in class_pairs:
+    for class_a, class_b, confound_a, confound_b, pair_name in class_pairs:
         is_S = (y_raw == class_a) | (y_raw == class_b)
         p_true = is_S.mean()
         print(f"\n  Pair: {pair_name} (p={p_true:.4f})")
@@ -768,7 +799,8 @@ def experiment_covertype(n_trials=10):
             y_train = y_sub[train_idx]
 
             y_ds_train, is_S_train = make_downstream_labels(
-                y_train, class_a, class_b, rng)
+                y_train, X_train, class_a, class_b,
+                confound_a, confound_b)
 
             test_is_S = (y_sub[test_idx] == class_a) | (y_sub[test_idx] == class_b)
             X_test = X_sub[test_idx][test_is_S]
@@ -824,14 +856,15 @@ def experiment_covertype(n_trials=10):
             k: [float(x) for x in v] for k, v in results.items()
         }
 
-    pair_names = [p[2] for p in class_pairs]
+    pair_names = [p[4] for p in class_pairs]
     save_data("covertype", {"results": all_results,
                               "pairs": pair_names, "n_trials": n_trials,
                               "N_S": 200, "N_B_subsample": N_B_use})
 
+    # Compute approximate p for labels
     plot_bar_chart(all_results, pair_names,
-                   ["Ponderosa vs\nDouglas-fir\n(p=0.09)",
-                    "Cottonwood vs\nAspen\n(p=0.02)"],
+                   ["Spruce/Fir vs\nLodgepole Pine\n(p=0.85)",
+                    "Ponderosa vs\nDouglas-fir\n(p=0.09)"],
                    "Covertype: filtering improves within-S classification ($N_S=200$)",
                    "covertype_downstream")
 
