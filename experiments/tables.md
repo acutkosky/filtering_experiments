@@ -290,3 +290,101 @@ At small $N_S$ (20--100), the filter's high FN rate (~91--97%) means very few $B
 | 1,000 | 0.949 | 0.938 | 0.872 | 0.078 | 0.038 |
 
 Filtering provides substantial gains at small $N_S$: +8.3 percentage points at $N_S = 10$, +3.6 at $N_S = 20$, and +2.8 at $N_S = 50$. The gains diminish as $N_S$ grows and $S$ alone becomes sufficient. Confounding labels (from a 3 vs 8 classifier applied to $O$) make random $B$ consistently harmful: 2--7 percentage points below $S$-only. The crossover at $N_S \approx 500$ reflects the point where the small amount of confounding noise in filtered $B$ (~4% FP) outweighs the benefit of additional data.
+
+---
+
+## Embedding Experiment: Wikipedia vs C4
+
+**Setup.** $S$ = Wikipedia paragraphs (high-quality encyclopedic text), $O$ = C4 web crawl paragraphs (general web text). $B$ contains 202,020 samples: 2,020 from Wikipedia ($p = 0.01$) and 200,000 from C4. The $S$ samples used for training the filter are drawn from a separate held-out pool of Wikipedia paragraphs (no overlap with the Wikipedia samples in $B$). Each paragraph is truncated to 500 characters and embedded using a sentence transformer. We test two embedding models:
+
+- **MiniLM** (`all-MiniLM-L6-v2`): 384 dimensions, fast and lightweight.
+- **BGE** (`BAAI/bge-base-en-v1.5`): 768 dimensions, higher quality.
+
+The filter is logistic regression with asymmetric class weights (same as other real-world experiments, $C = 10$). We report FP/FN/precision/recall rates (no downstream task). Values are means over 10 trials.
+
+### Oracle test: linear separability ceiling
+
+To establish the ceiling for linear separation in each embedding space, we train logistic regression on fully labeled data (7,500 Wikipedia + 100,000 C4 for training, same for test). This tells us how well Wikipedia and C4 can be distinguished at all with a linear classifier in this embedding space.
+
+| Model | Accuracy | Recall (wiki TPR) | FP rate (C4 $\to$ wiki) | Precision |
+|-------|:--------:|:------------------:|:-----------------------:|:---------:|
+| MiniLM (384d) | 0.952 | 0.477 | 0.012 | 0.744 |
+| BGE (768d) | 0.966 | 0.637 | 0.009 | 0.836 |
+
+Even with full labels and balanced training, recall is limited (48--64%), confirming that Wikipedia and C4 are not perfectly linearly separable in these embedding spaces. The embeddings are optimized for semantic similarity, not source-quality discrimination. BGE is substantially better than MiniLM across all metrics. Overall accuracy is high (95--97%) because C4 is the majority class and the classifier correctly rejects most of it.
+
+### Filter quality vs $N_S$
+
+$N_B = 202{,}020$ throughout (2,020 Wikipedia + 200,000 C4).
+
+**MiniLM (384d):**
+
+| $N_S$ | $N_B / N_S$ | FN rate | FP rate | Precision | Recall | $n$ passed |
+|------:|------------:|--------:|--------:|----------:|-------:|-----------:|
+| 20 | 10,101 | 0.961 | 0.001 | 0.241 | 0.039 | 308 |
+| 50 | 4,040 | 0.871 | 0.005 | 0.193 | 0.129 | 1,339 |
+| 100 | 2,020 | 0.760 | 0.013 | 0.164 | 0.240 | 2,993 |
+| 200 | 1,010 | 0.566 | 0.029 | 0.130 | 0.434 | 6,756 |
+| 500 | 404 | 0.318 | 0.058 | 0.106 | 0.682 | 13,012 |
+| 1,000 | 202 | 0.230 | 0.072 | 0.097 | 0.770 | 15,994 |
+| 2,000 | 101 | 0.180 | 0.080 | 0.094 | 0.820 | 17,715 |
+| 5,000 | 40 | 0.162 | 0.083 | 0.093 | 0.839 | 18,234 |
+
+**BGE (768d):**
+
+| $N_S$ | $N_B / N_S$ | FN rate | FP rate | Precision | Recall | $n$ passed |
+|------:|------------:|--------:|--------:|----------:|-------:|-----------:|
+| 20 | 10,101 | 0.951 | 0.001 | 0.420 | 0.049 | 232 |
+| 50 | 4,040 | 0.818 | 0.003 | 0.408 | 0.182 | 914 |
+| 100 | 2,020 | 0.701 | 0.006 | 0.344 | 0.299 | 1,758 |
+| 200 | 1,010 | 0.573 | 0.011 | 0.286 | 0.428 | 3,018 |
+| 500 | 404 | 0.360 | 0.022 | 0.227 | 0.640 | 5,737 |
+| 1,000 | 202 | 0.250 | 0.030 | 0.201 | 0.750 | 7,561 |
+| 2,000 | 101 | 0.173 | 0.037 | 0.186 | 0.828 | 9,036 |
+| 5,000 | 40 | 0.124 | 0.042 | 0.174 | 0.876 | 10,160 |
+
+### Filter quality vs $N_B$ (fixed $N_S = 1{,}000$)
+
+With $N_S$ fixed at 1,000, we vary $N_B$ by changing the number of C4 samples in the pool. The number of Wikipedia samples in $B$ scales proportionally to maintain $p = 0.01$.
+
+**MiniLM (384d):**
+
+| $N_B$ | $N_B / N_S$ | FN rate | FP rate | Precision | Recall | $n$ passed |
+|------:|------------:|--------:|--------:|----------:|-------:|-----------:|
+| 50,505 | 51 | 0.218 | 0.074 | 0.097 | 0.782 | 4,072 |
+| 101,010 | 101 | 0.232 | 0.073 | 0.096 | 0.768 | 8,086 |
+| 151,515 | 152 | 0.229 | 0.073 | 0.096 | 0.771 | 12,149 |
+| 202,020 | 202 | 0.222 | 0.074 | 0.096 | 0.778 | 16,459 |
+
+**BGE (768d):**
+
+| $N_B$ | $N_B / N_S$ | FN rate | FP rate | Precision | Recall | $n$ passed |
+|------:|------------:|--------:|--------:|----------:|-------:|-----------:|
+| 50,505 | 51 | 0.226 | 0.031 | 0.200 | 0.775 | 1,961 |
+| 101,010 | 101 | 0.237 | 0.031 | 0.202 | 0.763 | 3,823 |
+| 151,515 | 152 | 0.241 | 0.032 | 0.197 | 0.759 | 5,874 |
+| 202,020 | 202 | 0.246 | 0.031 | 0.197 | 0.754 | 7,758 |
+
+FP/FN rates and precision are essentially flat across $N_B$: the filter's quality is determined by $N_S$ (how well it can learn the Wikipedia boundary), not by the pool size. The number of samples passing the filter scales linearly with $N_B$ as expected, but the *rates* are unchanged. This is consistent with the theory: when $N_S$ is the bottleneck (i.e., $R^2/(\gamma^2 N_S) \gg R^2/(\gamma^2 p N_B)$), increasing $N_B$ does not improve the TV bound.
+
+### Comparison: filter vs oracle
+
+At $N_S = 5{,}000$ the filter substantially exceeds the oracle's recall, but at the cost of higher FP rate. Precision is lower than the oracle partly because the oracle is evaluated on imbalanced but fully-labeled data, while the filter must learn the boundary from only $N_S$ positive examples.
+
+**MiniLM (384d):**
+
+| Method | Recall | FP rate | Precision |
+|--------|-------:|--------:|----------:|
+| Oracle (7,500 wiki + 100K C4, labeled) | 0.477 | 0.012 | 0.744 |
+| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.839 | 0.083 | 0.093 |
+
+**BGE (768d):**
+
+| Method | Recall | FP rate | Precision |
+|--------|-------:|--------:|----------:|
+| Oracle (7,500 wiki + 100K C4, labeled) | 0.637 | 0.009 | 0.836 |
+| Filter ($N_S = 5{,}000$, $p = 0.01$) | 0.876 | 0.042 | 0.174 |
+
+The filter has *higher* recall than the oracle because the asymmetric class weighting pushes the decision boundary to accept more positives, at the cost of more false positives. The oracle optimizes balanced accuracy and is more conservative. On BGE, the filter achieves 88% recall with only 4.2% FP rate --- competitive with the oracle's 64% recall and 0.9% FP rate. These represent different operating points on the same ROC curve: the filter favors recall (find as much Wikipedia as possible), while the oracle favors precision (avoid accepting C4).
+
+The low absolute precision (9--17%) is an inherent consequence of low $p = 0.01$: even a small FP rate produces many false positives when 99% of the pool is $O$. To see this, the oracle's precision on the $p = 0.01$ mixture would be approximately $\frac{0.01 \cdot 0.637}{0.01 \cdot 0.637 + 0.99 \cdot 0.009} \approx 0.39$ for BGE --- much lower than its balanced-data precision of 84%, and closer to the filter's precision.
